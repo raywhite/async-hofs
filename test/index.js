@@ -59,3 +59,56 @@ test('createRetrierFn - wraps a function for retries', async function (t) {
 
   t.true(failure === 2)
 })
+
+test('createAsyncFnPool - creates a pool of async functions', async function (t) {
+  const { createAsyncFnPool } = hofs
+  const input = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] // Some bunch of tasks.
+  const expected = [...input]
+  const output = []
+
+  const sleep = x => new Promise(r => setTimeout(r, x))
+  const coroutine = async function () {
+    let v
+    while (v = input.shift()) { // eslint-disable-line no-cond-assign
+      await sleep(0) // True async (as below)
+      output.push(v)
+    }
+  }
+
+  t.true(!output.length)
+  await createAsyncFnPool(coroutine, 2)
+  t.deepEqual(expected, output) // NOTE: Synchronized.
+
+
+  // Reset everything.
+  input.push(...output)
+  output.length = 0
+  expected.length = 0
+  expected.push(10, 9, 8)
+
+  // It throws if any green thread throws.
+  const failer = async function () {
+    let v
+    while (v = input.pop()) { // eslint-disable-line no-cond-assign
+      await sleep(0)
+      if (v === 7) throw new Error(v)
+      output.push(v)
+    }
+  }
+
+  t.true(!output.length)
+
+  let err
+  try {
+    await createAsyncFnPool(failer, 8)
+  } catch ({ message }) {
+    err = +message
+  }
+
+  t.true(err === 7)
+  t.true(output.shift() === 10)
+})
+
+test('sequence - composes async functions left to right', async function (t) {
+  t.true(true)
+})
