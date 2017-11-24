@@ -30,12 +30,12 @@ module.exports.createAsyncFnPool = function (fn, concurrency = 1) {
 }
 
 module.exports.createRetrierFn = function (fn, limit = 2) {
-  return function (...args) {
+  return function (arg) {
     return new Promise(function (resolve, reject) {
       const recurse = function (err, r) {
         if (!r) return reject(err)
         try {
-          return fn(...args).then(resolve).catch(e => recurse(e, r--))
+          return fn(arg).then(resolve).catch(e => recurse(e, r - 1))
         } catch (serr) { // NOTE: Some sync error.
           return reject(serr)
         }
