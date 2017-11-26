@@ -56,7 +56,7 @@ const createSequencer = function (method) {
           try {
             if (fn) return fn(_v).then(recurse).catch(reject)
           } catch (serr) {
-            return reject(serr) // NOTE: Some sync error.
+            return reject(serr) // NOTE: ßSome sync error.
           }
 
           return _v
@@ -70,3 +70,35 @@ const createSequencer = function (method) {
 
 module.exports.sequence = createSequencer(Array.prototype.shift)
 module.exports.compose = createSequencer(Array.prototype.pop)
+
+// TODO: This will consume the stream... so has to error.
+module.exports.buffer = (function () {
+  const LIMIT_EXCEEDED = 'limit exceeded'
+  const SECOND_STREAM_CONSUMER = 'stream is already consumed'
+
+  const map = new WeakMap()
+
+  return function (writable, limit = (1000 * 1024)) {
+    let len = 0
+    const chunks = []
+
+    return new Promise(function (resolve, reject) {
+      if (map.has(writable)) return reject(SECOND_STREAM_CONSUMER)
+      map.set(writable, true)
+
+      writable.on('data', function (chunk) {
+        len += chunk.length
+        if (len > limit) return reject(new Error(LIMIT_EXCEEDED))
+        return chunks.push(chunk)
+      })
+
+      writable.on('end' function () {
+        return resolve(Buffer.concat(chunks,len))
+      })
+
+      writable.on('error', function (err) {
+        return reject(err)
+      })
+    })
+  }
+}())
