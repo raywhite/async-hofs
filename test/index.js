@@ -123,7 +123,7 @@ test('sequence - composes async functions left to right', async function (t) {
   t.true(v === 16)
 
   // Ugh... just noticed the above doesn't test directionality (reset)
-  fns.length = []
+  fns.length = 0
 
   const createPusher = function (x) {
     return function (y) {
@@ -134,15 +134,25 @@ test('sequence - composes async functions left to right', async function (t) {
   }
 
   while (fns.length < 4) fns.push(createPusher(fns.length))
-  sequence
 
   fn = sequence(...fns)
   v = await fn([])
 
-  t.deepEqual([ 0, 1, 2, 3 ], v)
+  t.deepEqual([0, 1, 2, 3], v)
 })
 
 test('compose - right to left composition', async function (t) {
-  // const { compose } = hofs
-  t.true(true)
+  const { compose } = hofs
+
+  const createAppender = x => str => Promise.resolve(`${str}${x}`)
+
+  const fns = []
+  while (fns.length < 4) fns.push(createAppender(fns.length))
+
+  const fn = compose(...fns)
+  const v = await fn('')
+
+  t.true(v === '3210')
 })
+
+test.todo('buffer - buffers a writable stream')

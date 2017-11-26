@@ -28,6 +28,8 @@ I'll write docs - they're coming... I have the best docs. I want these in a sepe
 
 ### createRetrierFn(*fn*, *[limit = 2]*)
 
+### buffer(*writable*, *[limit = 1000 * 1024]*)
+
 ## License
 
 &bull; **MIT** &copy; Ray White, 2107 &bull;

@@ -46,6 +46,10 @@ module.exports.createRetrierFn = function (fn, limit = 2) {
   }
 }
 
+const isPromise = function (x) {
+  return x instanceof Promise
+}
+
 const createSequencer = function (method) {
   return function (...fns) {
     return function (v) {
@@ -54,7 +58,11 @@ const createSequencer = function (method) {
           const fn = method.call(fns)
 
           try {
-            if (fn) return fn(_v).then(recurse).catch(reject)
+            if (fn) {
+              _v = fn(_v)
+              if (!isPromise(_v)) _v = Promise.resolve(_v)
+              return _v.then(recurse).catch(reject)
+            }
           } catch (serr) {
             return reject(serr) // NOTE: ßSome sync error.
           }
@@ -82,7 +90,7 @@ module.exports.buffer = (function () {
     let len = 0
     const chunks = []
 
-    return new Promise(function (resolve, reject) {
+    return new Promise(function (resolve, reject) { // eslint-disable-line consistent-return
       if (map.has(writable)) return reject(SECOND_STREAM_CONSUMER)
       map.set(writable, true)
 
@@ -92,8 +100,8 @@ module.exports.buffer = (function () {
         return chunks.push(chunk)
       })
 
-      writable.on('end' function () {
-        return resolve(Buffer.concat(chunks,len))
+      writable.on('end', function () {
+        return resolve(Buffer.concat(chunks, len))
       })
 
       writable.on('error', function (err) {
