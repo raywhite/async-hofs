@@ -52,6 +52,7 @@ const createSequencer = function (method) {
       return new Promise(function (resolve, reject) {
         const recurse = function (_v) {
           const fn = method.call(fns)
+
           try {
             if (fn) return fn(_v).then(recurse).catch(reject)
           } catch (serr) {
@@ -67,5 +68,5 @@ const createSequencer = function (method) {
   }
 }
 
-module.exports.sequence = createSequencer(Array.prototype.pop)
-module.exports.compose = createSequencer(Array.prototype.shift)
+module.exports.sequence = createSequencer(Array.prototype.shift)
+module.exports.compose = createSequencer(Array.prototype.pop)

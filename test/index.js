@@ -110,5 +110,39 @@ test('createAsyncFnPool - creates a pool of async functions', async function (t)
 })
 
 test('sequence - composes async functions left to right', async function (t) {
+  const { sequence } = hofs
+
+  // Just to make sure this is legit async.
+  const append = x => new Promise(r => setTimeout(() => r(x + 1), 0))
+  const fns = []
+  while (fns.length < 16) fns.push(append)
+
+  let fn = sequence(...fns)
+  let v = await fn(0)
+
+  t.true(v === 16)
+
+  // Ugh... just noticed the above doesn't test directionality (reset)
+  fns.length = []
+
+  const createPusher = function (x) {
+    return function (y) {
+      return new Promise(function (resolve) {
+        return setTimeout(resolve, 0, [...y, x])
+      })
+    }
+  }
+
+  while (fns.length < 4) fns.push(createPusher(fns.length))
+  sequence
+
+  fn = sequence(...fns)
+  v = await fn([])
+
+  t.deepEqual([ 0, 1, 2, 3 ], v)
+})
+
+test('compose - right to left composition', async function (t) {
+  // const { compose } = hofs
   t.true(true)
 })
