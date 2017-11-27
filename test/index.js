@@ -1,5 +1,6 @@
 const test = require('ava')
 const hofs = require('../src/index.js')
+const { Readable } = require('stream')
 
 test('memoize - it\'s here for my own sake', function (t) {
   const { memoize } = hofs
@@ -155,4 +156,56 @@ test('compose - right to left composition', async function (t) {
   t.true(v === '3210')
 })
 
-test.todo('buffer - buffers a writable stream')
+test('buffer - buffers a writable stream', async function (t) {
+  const { buffer } = hofs
+
+  const CHAR_STRING = 'some string of characters... :)'
+  const LONG_STRING = 'this string of characters is too long...'
+  const BYTE_LENGTH = Buffer.byteLength(LONG_STRING)
+
+  const createReadStream = function (str) {
+    return new Readable({
+      read() {
+        const chunk = Buffer.from(str.slice(0, 4))
+        str = str.slice(4)
+
+        // End when the string has been consumed.
+        return this.push(chunk.length ? chunk : null)
+      },
+    })
+  }
+
+  let readable = createReadStream(CHAR_STRING)
+  let b = await buffer(readable)
+  const str = String(b)
+
+  t.true(str === CHAR_STRING)
+
+  // We also need to assert that byte lengths work.
+  readable = createReadStream(LONG_STRING)
+
+  let message
+  let type
+  try {
+    b = await buffer(readable, BYTE_LENGTH - 4)
+  } catch (err) {
+    message = err.message
+    type = err.type
+  }
+
+  t.true(message === 'byte limit exceeded')
+  t.true(message === buffer.LIMIT_EXCEEDED)
+  t.true(message === buffer.LIMIT_EXCEEDED)
+
+  // And finally that two consumers are not allowed.
+  try {
+    await buffer(readable)
+  } catch (err) {
+    message = err.message
+    type = err.type
+  }
+
+  t.true(message === 'stream already consumed')
+  t.true(message === buffer.SECOND_STREAM_CONSUMER)
+  t.true(type === buffer.SECOND_STREAM_CONSUMER)
+})
