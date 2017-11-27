@@ -10,8 +10,6 @@ This repo contains utilities (mostly [higher order functions](https://en.wikiped
 
 The entire module expects a standard `Promise` implementation to be available (**Node v4+**), and also doesn't itself use `async` / `await` in any of it's source - so as to not require transpilation when used as a dependancy (it's intended to be used as a dep for [google cloud functions](https://cloud.google.com/functions/docs/writing/)), which at the time of writing this, is pinned to **Node v6.11.5 LTS**.
 
-Examples of usage are a *WIP*
-
 ## Setup
 
 To clone run `git clone https://github.com/raywhite/async-hofs`. 
@@ -22,7 +20,7 @@ To install as a dep, run `npm install @raywhite/async-hofs --save`.
 
 ## API
 
-**WIP**
+Examples of usage are a *WIP*.
 
 ### compose(*..fns*) => *fn*
 
