@@ -58,11 +58,11 @@ Wraps an `async` function so that it will be attempted `limit` times before it a
 
 Given a stdlib `Stream.readable`, this function will continue to read from the stream until the `end` event is emitted by the stream, and then resolve the returned promise. The returned promise will reject if the `limit` is exceeded, and will also reject with any errors emitted by the underlying stream.
 
-**NOTE:** This funciton will actually consume the stream, meaning that the stream shouldn't can't also be consumed by another function, unless the event handlers are attached prior to calling `buffer`. Importantly, `buffer` itself can't actually consume a stream that is or was being consumed by `buffer` - so subsequent calls to `buffer` using the same stream will error.
+**NOTE:** This funciton will actually consume the stream, meaning that the stream shouldn't also be consumed by another function, unless the event handlers are attached prior to calling `buffer`. Importantly, `buffer` itself can't actually consume a stream that is or was being consumed by `buffer` - so subsequent calls to `buffer` using the same stream will error.
 
-- **readable** - (`Stream.readable`) - 
-- **limit** - (`Number`)
-- **buf** - (`Promise`)
+- **readable** - (`Stream.readable`) - the readable stream to be buffered.
+- **limit** - (`Number`) - the max number of bytes to buffer.
+- **buf** - (`Promise`) - resolves with the buffer contents.
 
 ### constant *buffer.LIMIT_EXCEEDED*
 
