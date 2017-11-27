@@ -1,5 +1,7 @@
 # async-hofs
 
+![CircleCI](https://circleci.com/gh/raywhite/async-hofs.svg?style=shield&circle-token=ba7a6a30ff093e5402b3af43b6889c2b222ce366)
+
 > JS Promise & async / await higher order functions utils.
 
 ## About
