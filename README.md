@@ -6,31 +6,73 @@
 
 ## About
 
-I'll write docs - they're coming... I have the best docs. I want these in a seperate module for convinience because I find myself using them over and over. 
+This repo contains utilities (mostly [higher order functions](https://en.wikipedia.org/wiki/Higher-order_function)) intending to help with common [asynchronous tasks](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function) where `async` / `await` or [promises](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) are used.
 
-**WIP**
+The entire module expects a standard `Promise` implementation to be available (**Node v4+**), and also doesn't itself use `async` / `await` in any of it's source - so as to not require transpilation when used as a dependancy (it's intended to be used as a dep for [google cloud functions](https://cloud.google.com/functions/docs/writing/)), which at the time of writing this, is pinned to **Node v6.11.5 LTS**.
 
-## Installation
+Examples of usage are a *WIP*
 
-**WIP**
+## Setup
 
-## Usage
+To clone run `git clone https://github.com/raywhite/async-hofs`. 
 
-**WIP**
+Tests are written using [ava](https://github.com/avajs/ava), and can be run with `npm run test:node`. The full test suite includes linting with `eslint .` (`npm run test:lint`), and can be run with `npm run test`.
+
+To install as a dep, run `npm install @raywhite/async-hofs --save`.
 
 ## API
 
 **WIP**
 
-### compose(*..fns*)
+### compose(*..fns*) => *fn*
 
-### sequence(*...fns*)
+- **...fns** - (`...Function`) - any number of functions.
+- *fn* - (`Function`) - the composed function.
 
-### createAsyncFnPool(*fn*, *[concurrency = 1]*)
+While async functions are expected, synchronous functions will also be composed, but note that the composed function will alway return a promise. `compose` will compose functions from  **right to left**.
 
-### createRetrierFn(*fn*, *[limit = 2]*)
+### sequence(*...fns*) => *fn*
 
-### buffer(*writable*, *[limit = 1000 * 1024]*)
+- **...fns** - (`...Function`) - any number of functions.
+- *fn* - (`Function`) - the composed function.
+
+While async functions are expected, synchronous functions will also be composed. but note that the composed function will alway return a promise. `sequence` will compose functions from  **left to right**. 
+
+- **...fns** (`...Function`)  
+
+### createAsyncFnPool(*fn*, *[concurrency = 1]*) => *pool*
+
+- **fn** - (`Function`) - an `async` function to be invoked - where it requires parameters, used `Array.prototype.bind`.
+- **concurrency** - (`Number`) - how many times to spawn the `async` function - defaults to `1`.
+- **pool** - (`Promise`)
+
+### createRetrierFn(*fn*, *[limit = 2]*) => *retrier*
+
+Wraps an `async` function so that it will be attempted `limit` times before it actually rejects.
+
+**TODO:** At present this function fires of the original function as soon as the previous attempt failed - it should ideally support a linear and incremental backoff (ie. allowing it to wait *x* milliseconds before making another attempt)- and the simplest way to allow for this would be to make it accept a **curve** function and **increments** as params.
+
+- **fn** - (`Function`) - an `async` function to be wrapped for retrying.
+- **limit** - (`Number`) - the number of times to retry - defaults to `2`.
+- **retried** - (`Function`) - the wrapped function.
+
+### buffer(*readable*, *[limit = 1000 * 1024]*) => *buf*
+
+Given a stdlib `Stream.readable`, this function will continue to read from the stream until the `end` event is emitted by the stream, and then resolve the returned promise. The returned promise will reject if the `limit` is exceeded, and will also reject with any errors emitted by the underlying stream.
+
+**NOTE:** This funciton will actually consume the stream, meaning that the stream shouldn't can't also be consumed by another function, unless the event handlers are attached prior to calling `buffer`. Importantly, `buffer` itself can't actually consume a stream that is or was being consumed by `buffer` - so subsequent calls to `buffer` using the same stream will error.
+
+- **readable** - (`Stream.readable`) - 
+- **limit** - (`Number`)
+- **buf** - (`Promise`)
+
+### constant *buffer.LIMIT_EXCEEDED*
+
+The value of the error `message` and `type` upon rejection of the promise returned by `buffer` where the reason for rejection was exceeding of the `limit` parameter. Should be used for asserting whether or not this was the type of error.
+
+### constant *buffer.SECOND_STREAM_CONSUMER*
+
+The value of the error `message` and `type` upon rejection of the promise returned by `buffer` where the reason for rejection was `buffer` being called more than once with the same readable. Should be used for asserting whether or not this was the type of error.
 
 ## License
 

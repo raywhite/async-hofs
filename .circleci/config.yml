@@ -7,7 +7,7 @@ jobs:
   build:
     docker:
       # Specify the version you desire here.
-      - image: circleci/node:8.4.0
+      - image: circleci/node:6.11.5
 
     working_directory: ~/async-hofs
 
