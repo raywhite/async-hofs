@@ -209,3 +209,11 @@ test('buffer - buffers a writable stream', async function (t) {
   t.true(message === buffer.SECOND_STREAM_CONSUMER)
   t.true(type === buffer.SECOND_STREAM_CONSUMER)
 })
+
+test('clock - returns a functions that limits concurrent calls', async function (t) {
+  const { createCLockedFn } = hofs
+
+  console.log(createCLockedFn.toString())
+
+  t.true(true)
+})

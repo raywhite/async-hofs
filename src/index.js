@@ -203,26 +203,26 @@ module.exports.buffer = (function () {
 }())
 
 const createCLockedFn = function (fn, concurrency) {
-  const num = 0
+  let num = 0
   const queue = []
 
-  const schedule = function (fn) {
-    if (fn) queue.push(fn)
+  const schedule = function (invocation) {
+    if (invocation) queue.push(invocation)
     if (num <= concurrency && queue.length) {
       num++
-      return queue.shift()()
+      queue.shift()()
     }
   }
 
   const createSolution = function (outcome) {
-    return function (x) {
+    return function (v) {
       num--
       schedule()
-      return outome(x)
+      return outcome(v)
     }
   }
 
-  return function (...args) {
+  const clocked = function (...args) {
     return new Promise(function (resolve, reject) {
       const invoke = function () {
         let v
@@ -245,4 +245,18 @@ const createCLockedFn = function (fn, concurrency) {
       return schedule(invoke)
     })
   }
+
+  Object.defineProperty(clocked, 'pending', {
+    get: () => num + queue.length,
+  })
+
+  Object.defineProperty(clocked, 'queue', {
+    get: () => queue.length,
+  })
+
+  return clocked
 }
+
+// Exported with an alias - which makes more sense.
+module.exports.createCLockedFn = createCLockedFn
+module.exports.clock = createCLockedFn
