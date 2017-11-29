@@ -213,7 +213,55 @@ test('buffer - buffers a writable stream', async function (t) {
 test('clock - returns a functions that limits concurrent calls', async function (t) {
   const { createCLockedFn } = hofs
 
-  console.log(createCLockedFn.toString())
+  const createWorker = function (ms) {
+    /**
+     * This is designed to simulate some sort of heavy / long running
+     * async workload such as spawning a shell process or making
+     * some large IO request.
+     */
+    return function (v, fail = false) {
+      return new Promise(function (resolve, reject) {
+        setTimeout(fail ? reject : resolve, ms, v)
+      })
+    }
+  }
 
-  t.true(true)
+  // Function takes a second, and there is a concurrency of 4.
+  let fn = createCLockedFn(createWorker(1000), 4)
+
+  // Assertions on the available properties.
+  t.true(typeof fn.pending === 'number')
+  t.true(typeof fn.queued === 'number')
+
+  // We have 16 calls in total.
+  const a = []
+  while (a.length < 16) a.push(fn('x'))
+
+  const p = Promise.all(a)
+  t.true(fn.pending === 4)
+  t.true(fn.queued === 12)
+
+  let bench = process.hrtime()
+  await p
+  bench = process.hrtime(bench)
+
+  // So it should take about 4 seconds to complete.
+  t.true(bench.shift() === 4)
+
+  // NOTE: This next bit tests that resolution / rejection works.
+  fn = createCLockedFn(createWorker(0), 1)
+
+  const PASSTROUGH = 'some value or error'
+  let v = await fn(PASSTROUGH)
+  t.true(v === PASSTROUGH)
+
+  // And rejection.
+  v = undefined
+  try {
+    v = await fn(PASSTROUGH, true)
+  } catch (_v) {
+    v = _v
+  }
+
+  t.true(v === PASSTROUGH)
 })

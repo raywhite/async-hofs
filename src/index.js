@@ -202,13 +202,13 @@ module.exports.buffer = (function () {
   return buffer
 }())
 
-const createCLockedFn = function (fn, concurrency) {
+const createCLockedFn = function (fn, concurrency = 1) {
   let num = 0
   const queue = []
 
   const schedule = function (invocation) {
     if (invocation) queue.push(invocation)
-    if (num <= concurrency && queue.length) {
+    if (num < concurrency && queue.length) {
       num++
       queue.shift()()
     }
@@ -246,11 +246,12 @@ const createCLockedFn = function (fn, concurrency) {
     })
   }
 
+  // These values can be used to determine whether to add work.
   Object.defineProperty(clocked, 'pending', {
-    get: () => num + queue.length,
+    get: () => num,
   })
 
-  Object.defineProperty(clocked, 'queue', {
+  Object.defineProperty(clocked, 'queued', {
     get: () => queue.length,
   })
 
