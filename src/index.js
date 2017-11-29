@@ -201,3 +201,48 @@ module.exports.buffer = (function () {
 
   return buffer
 }())
+
+const createCLockedFn = function (fn, concurrency) {
+  const num = 0
+  const queue = []
+
+  const schedule = function (fn) {
+    if (fn) queue.push(fn)
+    if (num <= concurrency && queue.length) {
+      num++
+      return queue.shift()()
+    }
+  }
+
+  const createSolution = function (outcome) {
+    return function (x) {
+      num--
+      schedule()
+      return outome(x)
+    }
+  }
+
+  return function (...args) {
+    return new Promise(function (resolve, reject) {
+      const invoke = function () {
+        let v
+        try {
+          v = fn.call(null, ...args)
+        } catch (err) {
+          // The funciton threw synconously.
+          num--
+          return reject(err)
+        }
+
+        if (isPromise(v)) {
+          return v.then(createSolution(resolve)).catch(createSolution(reject))
+        }
+
+        num--
+        return resolve(v)
+      }
+
+      return schedule(invoke)
+    })
+  }
+}
