@@ -202,10 +202,19 @@ module.exports.buffer = (function () {
   return buffer
 }())
 
+/**
+ * @param {Function}
+ * @param {Number}
+ * @returns {Function}
+ */
 const createCLockedFn = function (fn, concurrency = 1) {
   let num = 0
   const queue = []
 
+  /**
+   * @param {Function}
+   * @returns {Void}
+   */
   const schedule = function (invocation) {
     if (invocation) queue.push(invocation)
     if (num < concurrency && queue.length) {
@@ -214,14 +223,24 @@ const createCLockedFn = function (fn, concurrency = 1) {
     }
   }
 
+  /**
+   * NOTE: Outcome is resolve or reject.
+   *
+   * @param {Function}
+   * @returns {Void}
+   */
   const createSolution = function (outcome) {
     return function (v) {
       num--
       schedule()
-      return outcome(v)
+      outcome(v)
     }
   }
 
+  /**
+   * @param {Mixed}
+   * @returns {Promise => Mixed}
+   */
   const clocked = function (...args) {
     return new Promise(function (resolve, reject) {
       const invoke = function () {

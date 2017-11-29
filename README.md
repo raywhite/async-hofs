@@ -54,6 +54,18 @@ Wraps an `async` function so that it will be attempted `limit` times before it a
 - **limit** - (`Number`) - the number of times to retry - defaults to `2`.
 - **retried** - (`Function`) - the wrapped function.
 
+### clock(*fn*, *[concurrency = 1]*) => *clocked*
+
+Given a function `fn` and an optional `concurrency`, this function will return a version of `fn` that will schedule invocation so as to allow a maximum of `concurrency` concurrent invocations of that function. This is intended for use case where you don't want to exceed some memory or IO limit, or create a mutex (for instance to prevent concurrent access to files).
+
+**NOTE:** this method is aliased as `createCLockedFn` - which was really just a more verbose name.
+
+- **fn** - (`Function`) - an `async` function to lock / release.
+- **concurrency** - (`Number`) - the number of concurrent invocations allowed - defaults to `1`.
+- **clocked** - (`Function`) - the concurrency locked function.
+  - **clocked.pending** - a getter for the number of invocations currently running.
+  - **clocked.queued** - a getter for the number of calls awaiting invocation.
+
 ### buffer(*readable*, *[limit = 1000 * 1024]*) => *buf*
 
 Given a stdlib `Stream.readable`, this function will continue to read from the stream until the `end` event is emitted by the stream, and then resolve the returned promise. The returned promise will reject if the `limit` is exceeded, and will also reject with any errors emitted by the underlying stream.
