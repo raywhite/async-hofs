@@ -201,3 +201,82 @@ module.exports.buffer = (function () {
 
   return buffer
 }())
+
+/**
+ * @param {Function}
+ * @param {Number}
+ * @returns {Function}
+ */
+const createCLockedFn = function (fn, concurrency = 1) {
+  let num = 0
+  const queue = []
+
+  /**
+   * @param {Function}
+   * @returns {Void}
+   */
+  const schedule = function (invocation) {
+    if (invocation) queue.push(invocation)
+    if (num < concurrency && queue.length) {
+      num++
+      queue.shift()()
+    }
+  }
+
+  /**
+   * NOTE: Outcome is resolve or reject.
+   *
+   * @param {Function}
+   * @returns {Void}
+   */
+  const createSolution = function (outcome) {
+    return function (v) {
+      num--
+      schedule()
+      outcome(v)
+    }
+  }
+
+  /**
+   * @param {Mixed}
+   * @returns {Promise => Mixed}
+   */
+  const clocked = function (...args) {
+    return new Promise(function (resolve, reject) {
+      const invoke = function () {
+        let v
+        try {
+          v = fn.call(null, ...args)
+        } catch (err) {
+          // The funciton threw synconously.
+          num--
+          return reject(err)
+        }
+
+        if (isPromise(v)) {
+          return v.then(createSolution(resolve)).catch(createSolution(reject))
+        }
+
+        num--
+        return resolve(v)
+      }
+
+      return schedule(invoke)
+    })
+  }
+
+  // These values can be used to determine whether to add work.
+  Object.defineProperty(clocked, 'pending', {
+    get: () => num,
+  })
+
+  Object.defineProperty(clocked, 'queued', {
+    get: () => queue.length,
+  })
+
+  return clocked
+}
+
+// Exported with an alias - which makes more sense.
+module.exports.createCLockedFn = createCLockedFn
+module.exports.clock = createCLockedFn
