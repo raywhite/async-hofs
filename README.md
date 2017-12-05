@@ -25,14 +25,14 @@ Examples of usage are a *WIP*.
 ### compose(*..fns*) => *fn*
 
 - **...fns** - (`...Function`) - any number of functions.
-- *fn* - (`Function`) - the composed function.
+- **fn** - (`Function`) - the composed function.
 
 While async functions are expected, synchronous functions will also be composed, but note that the composed function will alway return a promise. `compose` will compose functions from  **right to left**.
 
 ### sequence(*...fns*) => *fn*
 
 - **...fns** - (`...Function`) - any number of functions.
-- *fn* - (`Function`) - the composed function.
+- **fn** - (`Function`) - the composed function.
 
 While async functions are expected, synchronous functions will also be composed. but note that the composed function will alway return a promise. `sequence` will compose functions from  **left to right**. 
 
