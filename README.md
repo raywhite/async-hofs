@@ -27,14 +27,14 @@ Examples of usage are a *WIP*.
 - **...fns** - (`...Function`) - any number of functions.
 - **fn** - (`Function`) - the composed function.
 
-While async functions are expected, synchronous functions will also be composed, but note that the composed function will alway return a promise. `compose` will compose functions from  **right to left**.
+While async functions are expected, synchronous functions will also be composed. Note that the composed function will alway return a promise. `compose` will compose functions from  **right to left**.
 
 ### sequence(*...fns*) => *fn*
 
 - **...fns** - (`...Function`) - any number of functions.
 - **fn** - (`Function`) - the composed function.
 
-While async functions are expected, synchronous functions will also be composed. but note that the composed function will alway return a promise. `sequence` will compose functions from  **left to right**. 
+While async functions are expected, synchronous functions will also be composed. Note that the composed function will alway return a promise. `sequence` will compose functions from  **left to right**. 
 
 - **...fns** (`...Function`)  
 
@@ -43,6 +43,34 @@ While async functions are expected, synchronous functions will also be composed.
 - **fn** - (`Function`) - an `async` function to be invoked - where it requires parameters, used `Array.prototype.bind`.
 - **concurrency** - (`Number`) - how many times to spawn the `async` function - defaults to `1`.
 - **pool** - (`Promise`)
+
+Wraps an `async` function, and takes an optional concurrency. `fn` will be used to create a "green" thread (think of it like a goroutine or something)... and it will limit the concurrency with which that function is called. Consider the following example:
+
+```js
+const { createAsyncFnPool } = require('async-hofs')
+
+const sleep = async function (value) {
+  await new Promise(r => setTimeout(r, Math.random() * 16))
+  return value
+}
+
+const inputs = [1, 2, 3, 4, 5, 6]
+const outputs = []
+
+const thread = async function () {
+  while (inputs.length) {
+    const value = await sleep(inputs.shift())
+    outputs.push(value)
+  }
+}
+
+const fn = async function () {
+  await createAsyncFnPool(thread, 2)
+  console.log.call(console, outputs)
+}
+
+fn().catch(console.error.bind(console))
+```
 
 ### createRetrierFn(*fn*, *[limit = 2]*) => *retrier*
 
