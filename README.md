@@ -110,8 +110,8 @@ The value of the error `message` and `type` upon rejection of the promise return
 
 ### constant *buffer.SECOND_STREAM_CONSUMER*
 
-The value of the error `message` and `type` upon rejection of the promise returned by `buffer` where the reason for rejection was `buffer` being called more than once with the same readable. Should be used for asserting whether or not this was the type of error.
+The value of the error `message` and `type` upon rejection of the promise returned by `buffer`, where the reason for rejection was `buffer` being called more than once with the same readable. Should be used for asserting whether or not this was the type of error.
 
 ## License
 
-&bull; **MIT** &copy; Ray White, 2107 &bull;
+&bull; **MIT** &copy; Ray White, 2017-2018 &bull;
