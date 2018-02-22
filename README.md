@@ -78,9 +78,11 @@ Wraps an `async` function so that it will be attempted `limit` times before it a
 
 **TODO:** At present this function fires of the original function as soon as the previous attempt failed - it should ideally support a linear and incremental backoff (ie. allowing it to wait *x* milliseconds before making another attempt)- and the simplest way to allow for this would be to make it accept a **curve** function and **increments** as params.
 
+Where the wrapped function rejects multiple times (exceeding the limit), the error that it finally rejects with will always be value that the last attempt rejected with.
+
 - **fn** - (`Function`) - an `async` function to be wrapped for retrying.
 - **limit** - (`Number`) - the number of times to retry - defaults to `2`.
-- **retried** - (`Function`) - the wrapped function.
+- **retrier** - (`Function`) - the wrapped function.
 
 ### clock(*fn*, *[concurrency = 1]*) => *clocked*
 
