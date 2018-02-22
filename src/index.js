@@ -75,12 +75,12 @@ module.exports.createRetrierFn = function (fn, limit = 2) {
    */
   return function (arg) {
     return new Promise(function (resolve, reject) {
-      const recurse = function (err, r) {
-        if (!r) return reject(err)
+      const recurse = function (err, remaining) {
+        if (remaining === 0) return reject(err)
         try {
-          return fn(arg).then(resolve).catch(e => recurse(e, r - 1))
-        } catch (serr) { // NOTE: Some sync error.
-          return reject(serr)
+          return fn(arg).then(resolve).catch(asyncErr => recurse(asyncErr, remaining - 1))
+        } catch (syncErr) { // NOTE: Some sync error.
+          return reject(syncErr)
         }
       }
 
