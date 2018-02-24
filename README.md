@@ -20,8 +20,6 @@ To install as a dep, run `npm install @raywhite/async-hofs --save`.
 
 ## API
 
-Examples of usage are a *WIP*.
-
 ### compose(*..fns*) => *fn*
 
 - **...fns** - (`...Function`) - any number of functions.
@@ -96,13 +94,22 @@ Given a function `fn` and an optional `concurrency`, this function will return a
   - **clocked.pending** - a getter for the number of invocations currently running.
   - **clocked.queued** - a getter for the number of calls awaiting invocation.
 
+### bechmark(*fn*, *[precision = 'ms']*, *[...args]*) => *res*
+
+The returned value (`res`) is a `Promise` that resolves with a tuple in the form (`time`, `value`) where `value` is the value resolved by calling `fn`, and `time` is the measured execuition time of `fn` with a precision of `precision`. Where `fn` rejects, `benchmark` itself with reject with the same value ツ.
+ 
+- **fn** - (`Function`) - the async function to be invoked.
+- **precision** - (`String`) - a constant (`s|ms|ns`) representing the precision of the timing.
+- **args** - (`...Mixed`) - extras arguments to pass to the `fn` invokcation.
+- **res** - (`Array`) - the `time` and `value` tuple.
+
 ### buffer(*readable*, *[limit = 1000 * 1024]*) => *buf*
 
-Given a stdlib `Stream.readable`, this function will continue to read from the stream until the `end` event is emitted by the stream, and then resolve the returned promise. The returned promise will reject if the `limit` is exceeded, and will also reject with any errors emitted by the underlying stream.
+Given a stdlib `stream.Readable`, this function will continue to read from the stream until the `end` event is emitted by the stream, and then resolve the returned promise. The returned promise will reject if the `limit` is exceeded, and will also reject with any errors emitted by the underlying stream.
 
 **NOTE:** This funciton will actually consume the stream, meaning that the stream shouldn't also be consumed by another function, unless the event handlers are attached prior to calling `buffer`. Importantly, `buffer` itself can't actually consume a stream that is or was being consumed by `buffer` - so subsequent calls to `buffer` using the same stream will error.
 
-- **readable** - (`Stream.readable`) - the readable stream to be buffered.
+- **readable** - (`stream.Readable`) - the readable stream to be buffered.
 - **limit** - (`Number`) - the max number of bytes to buffer.
 - **buf** - (`Promise`) - resolves with the buffer contents.
 
