@@ -285,43 +285,53 @@ test('benchmark - times an async function', async function (t) {
     t.true(value === null)
   }())
 
-  // TODO: Explicit `ms` setting.
+  // Explicit `ms` setting.
   await (async function () {
     let sleep = createSleeper()
-    const [time, value] = await benchmark(sleep.bind(null, null))
+    const [time, value] = await benchmark(sleep.bind(null, null), 'ms')
     t.true(time.toString().length === 2)
     t.true(value === null)
   }())
 
-  // TODO: `ns`
+  // Unknown fallthtough.
   await (async function () {
     let sleep = createSleeper()
-    const [time, value] = await benchmark(sleep.bind(null, null))
+    const [time, value] = await benchmark(sleep.bind(null, null), 'gs')
     t.true(time.toString().length === 2)
     t.true(value === null)
   }())
 
-  // TODO: `s`
+  // `ns`.
   await (async function () {
     let sleep = createSleeper()
-    const [time, value] = await benchmark(sleep.bind(null, null))
-    t.true(time.toString().length === 2)
+    const [time, value] = await benchmark(sleep.bind(null, null), 'ns')
+    t.true(time.toString().length > 6)
     t.true(value === null)
   }())
 
-  // TODO: passing extra params.
+  // `s`.
   await (async function () {
-    let sleep = createSleeper()
-    const [time, value] = await benchmark(sleep.bind(null, null))
-    t.true(time.toString().length === 2)
+    let sleep = createSleeper(2 * 1000)
+    const [time, value] = await benchmark(sleep.bind(null, null), 's')
+    t.true(time === 2)
     t.true(value === null)
   }())
 
-  // TODO: fail case...
+  // Passing extra params.
   await (async function () {
     let sleep = createSleeper()
-    const [time, value] = await benchmark(sleep.bind(null, null))
-    t.true(time.toString().length === 2)
+    const [time, value] = await benchmark(sleep, 'ms', null)
     t.true(value === null)
+  }())
+
+  // Fail case...
+  await (async function () {
+    const MESSAGE = 'MESSAGE'
+    let sleep = createSleeper(16, true)
+    let message
+    try {
+      await benchmark(sleep.bind(null, new Error(MESSAGE)))
+    } catch (err) { message = err.message }
+    t.true(message === MESSAGE)
   }())
 })
