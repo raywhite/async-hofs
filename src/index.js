@@ -291,7 +291,7 @@ module.exports.clock = createCLockedFn
  */
 const benchmark = function (fn, precision = 'ms', ...args) {
   return new Promise(function (resolve, reject) {
-    const t = process.hrtime().pop()
+    const t = process.hrtime()
     fn(...args).then(function (value) {
       const [s, ns] = process.hrtime(t)
 

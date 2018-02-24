@@ -265,3 +265,63 @@ test('clock - returns a functions that limits concurrent calls', async function 
 
   t.true(v === PASSTROUGH)
 })
+
+test('benchmark - times an async function', async function (t) {
+  const { benchmark } = hofs
+
+  const createSleeper = function (timeout = 16, fail = false) {
+    return function (value) {
+      return new Promise(function (resolve, reject) {
+        return setTimeout(!fail ? resolve : reject, timeout, value)
+      })
+    }
+  }
+
+  // Implicit `ms` setting.
+  await (async function () {
+    let sleep = createSleeper()
+    const [time, value] = await benchmark(sleep.bind(null, null))
+    t.true(time.toString().length === 2)
+    t.true(value === null)
+  }())
+
+  // TODO: Explicit `ms` setting.
+  await (async function () {
+    let sleep = createSleeper()
+    const [time, value] = await benchmark(sleep.bind(null, null))
+    t.true(time.toString().length === 2)
+    t.true(value === null)
+  }())
+
+  // TODO: `ns`
+  await (async function () {
+    let sleep = createSleeper()
+    const [time, value] = await benchmark(sleep.bind(null, null))
+    t.true(time.toString().length === 2)
+    t.true(value === null)
+  }())
+
+  // TODO: `s`
+  await (async function () {
+    let sleep = createSleeper()
+    const [time, value] = await benchmark(sleep.bind(null, null))
+    t.true(time.toString().length === 2)
+    t.true(value === null)
+  }())
+
+  // TODO: passing extra params.
+  await (async function () {
+    let sleep = createSleeper()
+    const [time, value] = await benchmark(sleep.bind(null, null))
+    t.true(time.toString().length === 2)
+    t.true(value === null)
+  }())
+
+  // TODO: fail case...
+  await (async function () {
+    let sleep = createSleeper()
+    const [time, value] = await benchmark(sleep.bind(null, null))
+    t.true(time.toString().length === 2)
+    t.true(value === null)
+  }())
+})
