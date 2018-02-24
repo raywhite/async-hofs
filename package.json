@@ -9,7 +9,8 @@
   "scripts": {
     "test": "npm run test:lint && npm run test:node",
     "test:lint": "eslint .",
-    "test:node": "ava --verbose"
+    "test:node": "ava --verbose",
+    "test:node_match": "ava --verbose --match"
   },
   "author": "axdg <axdg@dfant.asia>",
   "license": "MIT",
