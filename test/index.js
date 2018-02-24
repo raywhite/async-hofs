@@ -279,7 +279,7 @@ test('benchmark - times an async function', async function (t) {
 
   // Implicit `ms` setting.
   await (async function () {
-    let sleep = createSleeper()
+    const sleep = createSleeper()
     const [time, value] = await benchmark(sleep.bind(null, null))
     t.true(time.toString().length === 2)
     t.true(value === null)
@@ -287,7 +287,7 @@ test('benchmark - times an async function', async function (t) {
 
   // Explicit `ms` setting.
   await (async function () {
-    let sleep = createSleeper()
+    const sleep = createSleeper()
     const [time, value] = await benchmark(sleep.bind(null, null), 'ms')
     t.true(time.toString().length === 2)
     t.true(value === null)
@@ -295,7 +295,7 @@ test('benchmark - times an async function', async function (t) {
 
   // Unknown fallthtough.
   await (async function () {
-    let sleep = createSleeper()
+    const sleep = createSleeper()
     const [time, value] = await benchmark(sleep.bind(null, null), 'gs')
     t.true(time.toString().length === 2)
     t.true(value === null)
@@ -303,7 +303,7 @@ test('benchmark - times an async function', async function (t) {
 
   // `ns`.
   await (async function () {
-    let sleep = createSleeper()
+    const sleep = createSleeper()
     const [time, value] = await benchmark(sleep.bind(null, null), 'ns')
     t.true(time.toString().length > 6)
     t.true(value === null)
@@ -311,7 +311,7 @@ test('benchmark - times an async function', async function (t) {
 
   // `s`.
   await (async function () {
-    let sleep = createSleeper(2 * 1000)
+    const sleep = createSleeper(2 * 1000)
     const [time, value] = await benchmark(sleep.bind(null, null), 's')
     t.true(time === 2)
     t.true(value === null)
@@ -319,15 +319,15 @@ test('benchmark - times an async function', async function (t) {
 
   // Passing extra params.
   await (async function () {
-    let sleep = createSleeper()
-    const [time, value] = await benchmark(sleep, 'ms', null)
+    const sleep = createSleeper()
+    const [, value] = await benchmark(sleep, 'ms', null)
     t.true(value === null)
   }())
 
   // Fail case...
   await (async function () {
     const MESSAGE = 'MESSAGE'
-    let sleep = createSleeper(16, true)
+    const sleep = createSleeper(16, true)
     let message
     try {
       await benchmark(sleep.bind(null, new Error(MESSAGE)))
