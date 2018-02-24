@@ -1,3 +1,4 @@
+const { Transform } = require('stream')
 /**
  * This one is in no way an async util... but I'm using it heaps
  * and just want somewhere safe to export form ATM.
@@ -280,3 +281,49 @@ const createCLockedFn = function (fn, concurrency = 1) {
 // Exported with an alias - which makes more sense.
 module.exports.createCLockedFn = createCLockedFn
 module.exports.clock = createCLockedFn
+
+/**
+ * Time the execustion of some async function.
+ *
+ * @param {Function}
+ * @param {String} `s|ms|ns` (`ms` default)
+ * @param {...Mixed}
+ * @returns {Promise} => {Array} [time, value]
+ */
+const benchmark = function (fn, precision = 'ms', ...args) {
+  return new Promise(function (resolve, reject) {
+    const t = process.hrtime()
+    fn(...args).then(function (value) {
+      const [s, ns] = process.hrtime(t)
+
+      if (precision === 's') return resolve([Math.round(s + (ns / 1000000000)), value])
+      if (precision === 'ns') return resolve([Math.round((s * 1000000000) + ns), value])
+      return resolve([Math.round((s * 1000) + (ns / 1000000)), value])
+    }).catch(reject)
+  })
+}
+
+module.exports.benchmark = benchmark
+
+/**
+ * Creates a through (transform) stream that emits `shard` events
+ * - used to write to shards... not sure if this is the best
+ * implementation for this sort of thing yet... so I might keep
+ * it away from the docs for now :(
+ *
+ * @param {Function}
+ * @returns {stream.Transform}
+ */
+const createSharderStream = function (fn) {
+  return new Transform({
+    transform(chunk, encoding, callback) {
+      const [shard, ...values] = fn(chunk, encoding)
+      if (shard) this.emit('shard', ...values)
+      process.nextTick(this.push.bind(this, chunk))
+      callback()
+    },
+  })
+}
+
+
+module.exports.createSharderStream = createSharderStream

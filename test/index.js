@@ -265,3 +265,73 @@ test('clock - returns a functions that limits concurrent calls', async function 
 
   t.true(v === PASSTROUGH)
 })
+
+test('benchmark - times an async function', async function (t) {
+  const { benchmark } = hofs
+
+  const createSleeper = function (timeout = 16, fail = false) {
+    return function (value) {
+      return new Promise(function (resolve, reject) {
+        return setTimeout(!fail ? resolve : reject, timeout, value)
+      })
+    }
+  }
+
+  // Implicit `ms` setting.
+  await (async function () {
+    const sleep = createSleeper()
+    const [time, value] = await benchmark(sleep.bind(null, null))
+    t.true(time.toString().length === 2)
+    t.true(value === null)
+  }())
+
+  // Explicit `ms` setting.
+  await (async function () {
+    const sleep = createSleeper()
+    const [time, value] = await benchmark(sleep.bind(null, null), 'ms')
+    t.true(time.toString().length === 2)
+    t.true(value === null)
+  }())
+
+  // Unknown fallthtough.
+  await (async function () {
+    const sleep = createSleeper()
+    const [time, value] = await benchmark(sleep.bind(null, null), 'gs')
+    t.true(time.toString().length === 2)
+    t.true(value === null)
+  }())
+
+  // `ns`.
+  await (async function () {
+    const sleep = createSleeper()
+    const [time, value] = await benchmark(sleep.bind(null, null), 'ns')
+    t.true(time.toString().length > 6)
+    t.true(value === null)
+  }())
+
+  // `s`.
+  await (async function () {
+    const sleep = createSleeper(2 * 1000)
+    const [time, value] = await benchmark(sleep.bind(null, null), 's')
+    t.true(time === 2)
+    t.true(value === null)
+  }())
+
+  // Passing extra params.
+  await (async function () {
+    const sleep = createSleeper()
+    const [, value] = await benchmark(sleep, 'ms', null)
+    t.true(value === null)
+  }())
+
+  // Fail case...
+  await (async function () {
+    const MESSAGE = 'MESSAGE'
+    const sleep = createSleeper(16, true)
+    let message
+    try {
+      await benchmark(sleep.bind(null, new Error(MESSAGE)))
+    } catch (err) { message = err.message }
+    t.true(message === MESSAGE)
+  }())
+})
