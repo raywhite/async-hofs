@@ -88,48 +88,46 @@ test('createRetrierFn - wrapped functions supports variable arguments', async fu
 
 test('createAsyncFnQueue - create an async queue', async function (t) {
   const { createAsyncFnQueue } = hofs
-  const input = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] // Some bunch of tasks.
-  const expected = [...input]
+  const sleep = x => new Promise(r => setTimeout(r, x))
   const output = []
 
-  const sleep = x => new Promise(r => setTimeout(r, x))
-  const coroutine = async function () {
-    let v
-    while (v = input.shift()) { // eslint-disable-line no-cond-assign
-      await sleep(0) // True async (as below)
-      output.push(v)
-    }
-  }
+  // Check calls in order
+  const enqueue1 = createAsyncFnQueue(1)
+  await Promise.all([
+    enqueue1(() => sleep(300).then(() => output.push(1))),
+    enqueue1(() => sleep(200).then(() => output.push(2))),
+    enqueue1(() => sleep(100).then(() => output.push(3))),
+  ])
+  t.deepEqual(output, [1, 2, 3])
 
-  t.true(!output.length)
-  const queue = createAsyncFnQueue(2)
-  queue.push(coroutine)
-  queue.push(coroutine)
-  await queue.empty()
-  t.deepEqual(expected, output) // NOTE: Synchronized.
-
-  // Reset everything.
-  input.push(...output)
+  // Run them all in parallel and they'll get added in timeout order
   output.length = 0
-  expected.length = 0
-  expected.push(10, 9, 8)
+  const enqueue3 = createAsyncFnQueue(3)
+  await Promise.all([
+    enqueue3(() => sleep(300).then(() => output.push(1))),
+    enqueue3(() => sleep(200).then(() => output.push(2))),
+    enqueue3(() => sleep(100).then(() => output.push(3))),
+  ])
+  t.deepEqual(output, [3, 2, 1])
 
-  // It ignores any failures
-  const failer = async function () {
-    let v
-    while (v = input.pop()) { // eslint-disable-line no-cond-assign
-      await sleep(0)
-      if (v === 7) throw new Error(v)
-      output.push(v)
-    }
-  }
+  // Run them with a limit of 2 and the third will beat the first
+  output.length = 0
+  const enqueue2 = createAsyncFnQueue(2)
+  await Promise.all([
+    enqueue2(() => sleep(300).then(() => output.push(1))),
+    enqueue2(() => sleep(200).then(() => output.push(2))),
+    enqueue2(() => sleep(100).then(() => output.push(3))),
+  ])
+  t.deepEqual(output, [2, 1, 3])
 
-  t.true(!output.length)
+  // Ensure that rejections to not break the queue, it should function afterwards
+  await enqueue1(() => Promise.reject('w00t')).catch(() => {})
 
-  // The queue ignores rejections, but the caller should still handle them
-  queue.push(failer).catch(() => {})
-  await queue.empty()
-  t.deepEqual(expected, output) // NOTE: Synchronized.
+  // Ensure that sync functions are still returned
+  t.true(await enqueue1(() => 1) === 1)
+
+  // Ensure that sync errors are handled by the queue
+  await enqueue1(() => { throw new Error('fail') }).catch(() => {})
 })
 
 test('createAsyncFnPool - creates a pool of async functions', async function (t) {
