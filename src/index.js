@@ -43,8 +43,9 @@ module.exports.memoize = function (fn) {
  */
 function createAsyncFnQueue(concurrency = 1) {
   const pool = [...new Array(concurrency)].map((_, index) => Promise.resolve(index))
+  let allocate = Promise.resolve()
 
-  const process = function (fn) {
+  function process(fn) {
     return function (index) {
       try {
         const called = Promise.resolve(fn())
@@ -57,7 +58,12 @@ function createAsyncFnQueue(concurrency = 1) {
     }
   }
 
-  return fn => Promise.race(pool).then(process(fn))
+  function push(fn) {
+    allocate = allocate.then(() => Promise.race(pool))
+    return allocate.then(process(fn))
+  }
+
+  return push
 }
 
 module.exports.createAsyncFnQueue = createAsyncFnQueue
