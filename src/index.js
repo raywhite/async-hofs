@@ -30,6 +30,54 @@ module.exports.memoize = function (fn) {
   return m
 }
 
+const sleep = x => new Promise(r => setTimeout(r, x))
+
+/**
+ * Create a queue to handle processing of async functions with limited
+ * concurrency.
+ *
+ * The returned object provides a `push()` method which will queue the async
+ * function given for execution, returning a promise that resolves or rejects
+ * when the function is actually run and a result is available.
+ *
+ * An `empty()` method is also provided, which resolves when all the currently
+ * queued functions have completed.
+ *
+ * QUESTION: Surely the correct teminology would be `drain` as opposed to
+ * `empty`... especially within the context of node - where `drain` is emitted
+ * when a stream.Writable has nothing to left to process, or where the event
+ * loop is referred to as being "drained" when there is nothing on it - could we
+ * change this?
+ *
+ * @param {Number}
+ * @returns {Object}
+ */
+function createAsyncFnQueue(concurrency = 1) {
+  const pool = [...new Array(concurrency)].map((_, index) => Promise.resolve(index))
+
+  const process = function (fn) {
+    return function (index) {
+      try {
+        const called = Promise.resolve(fn())
+        const returnIndex = () => index
+        pool[index] = called.then(returnIndex, returnIndex)
+        return called
+      } catch (error) {
+        return Promise.reject(error)
+      }
+    }
+  }
+
+  const push = fn => Promise.race(pool).then(process(fn))
+
+  // NOTE: probably a timing issue here, could fix but more messy above.
+  const empty = () => sleep(0).then(() => Promise.all(pool))
+
+  return { push, empty }
+}
+
+module.exports.createAsyncFnQueue = createAsyncFnQueue
+
 /**
  * Creates a pool of promises (AKA, the results of async
  * fn invokations) to distribute work and help with syncronising
@@ -43,18 +91,16 @@ module.exports.memoize = function (fn) {
  * @returns {Promise => Array}
  */
 module.exports.createAsyncFnPool = function (fn, concurrency = 1) {
-  const pool = []
+  const queue = createAsyncFnQueue(concurrency)
 
-  try {
+  return new Promise(function (resolve, reject) {
     while (concurrency) {
-      pool.push(fn())
+      queue.push(fn).catch(reject)
       concurrency--
     }
-  } catch (err) {
-    return Promise.reject(err)
-  }
 
-  return Promise.all(pool)
+    return queue.empty().then(resolve)
+  })
 }
 
 /**

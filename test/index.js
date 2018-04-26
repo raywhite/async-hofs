@@ -33,7 +33,7 @@ test('createRetrierFn - wraps a function for retries', async function (t) {
    */
   const createFailer = function (i) {
     return async function () {
-      sleep(0) // Forces async.
+      await sleep(0) // Forces async.
       if (i) {
         i--
         throw new Error(i)
@@ -69,7 +69,7 @@ test('createRetrierFn - wrapped functions supports variable arguments', async fu
   const createFailer = function (i) {
     return async function (a, b, c) {
       received.push([a, b, c])
-      sleep(0) // Forces async.
+      await sleep(0) // Forces async.
       if (i) {
         i--
         throw new Error(i)
@@ -84,6 +84,52 @@ test('createRetrierFn - wrapped functions supports variable arguments', async fu
     [1, 2, 3],
     [1, 2, 3],
   ]))
+})
+
+test('createAsyncFnQueue - create an async queue', async function (t) {
+  const { createAsyncFnQueue } = hofs
+  const input = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] // Some bunch of tasks.
+  const expected = [...input]
+  const output = []
+
+  const sleep = x => new Promise(r => setTimeout(r, x))
+  const coroutine = async function () {
+    let v
+    while (v = input.shift()) { // eslint-disable-line no-cond-assign
+      await sleep(0) // True async (as below)
+      output.push(v)
+    }
+  }
+
+  t.true(!output.length)
+  const queue = createAsyncFnQueue(2)
+  queue.push(coroutine)
+  queue.push(coroutine)
+  await queue.empty()
+  t.deepEqual(expected, output) // NOTE: Synchronized.
+
+  // Reset everything.
+  input.push(...output)
+  output.length = 0
+  expected.length = 0
+  expected.push(10, 9, 8)
+
+  // It ignores any failures
+  const failer = async function () {
+    let v
+    while (v = input.pop()) { // eslint-disable-line no-cond-assign
+      await sleep(0)
+      if (v === 7) throw new Error(v)
+      output.push(v)
+    }
+  }
+
+  t.true(!output.length)
+
+  // The queue ignores rejections, but the caller should still handle them
+  queue.push(failer).catch(() => {})
+  await queue.empty()
+  t.deepEqual(expected, output) // NOTE: Synchronized.
 })
 
 test('createAsyncFnPool - creates a pool of async functions', async function (t) {
