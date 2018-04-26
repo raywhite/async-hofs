@@ -30,27 +30,16 @@ module.exports.memoize = function (fn) {
   return m
 }
 
-const sleep = x => new Promise(r => setTimeout(r, x))
-
 /**
  * Create a queue to handle processing of async functions with limited
  * concurrency.
  *
- * The returned object provides a `push()` method which will queue the async
- * function given for execution, returning a promise that resolves or rejects
- * when the function is actually run and a result is available.
- *
- * An `empty()` method is also provided, which resolves when all the currently
- * queued functions have completed.
- *
- * QUESTION: Surely the correct teminology would be `drain` as opposed to
- * `empty`... especially within the context of node - where `drain` is emitted
- * when a stream.Writable has nothing to left to process, or where the event
- * loop is referred to as being "drained" when there is nothing on it - could we
- * change this?
+ * The returned function will queue the async function given for execution,
+ * returning a promise that resolves or rejects when the function is actually
+ * run and a result is available.
  *
  * @param {Number}
- * @returns {Object}
+ * @returns {Function(fn => Promise)}
  */
 function createAsyncFnQueue(concurrency = 1) {
   const pool = [...new Array(concurrency)].map((_, index) => Promise.resolve(index))
@@ -68,12 +57,7 @@ function createAsyncFnQueue(concurrency = 1) {
     }
   }
 
-  const push = fn => Promise.race(pool).then(process(fn))
-
-  // NOTE: probably a timing issue here, could fix but more messy above.
-  const empty = () => sleep(0).then(() => Promise.all(pool))
-
-  return { push, empty }
+  return fn => Promise.race(pool).then(process(fn))
 }
 
 module.exports.createAsyncFnQueue = createAsyncFnQueue
@@ -91,16 +75,9 @@ module.exports.createAsyncFnQueue = createAsyncFnQueue
  * @returns {Promise => Array}
  */
 module.exports.createAsyncFnPool = function (fn, concurrency = 1) {
-  const queue = createAsyncFnQueue(concurrency)
+  const enqueue = createAsyncFnQueue(concurrency)
 
-  return new Promise(function (resolve, reject) {
-    while (concurrency) {
-      queue.push(fn).catch(reject)
-      concurrency--
-    }
-
-    return queue.empty().then(resolve)
-  })
+  return Promise.all([...new Array(concurrency)].map(() => enqueue(fn)))
 }
 
 /**

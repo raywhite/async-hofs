@@ -102,10 +102,11 @@ test('createAsyncFnQueue - create an async queue', async function (t) {
   }
 
   t.true(!output.length)
-  const queue = createAsyncFnQueue(2)
-  queue.push(coroutine)
-  queue.push(coroutine)
-  await queue.empty()
+  const enqueue = createAsyncFnQueue(2)
+  await Promise.all([
+    enqueue(coroutine),
+    enqueue(coroutine),
+  ])
   t.deepEqual(expected, output) // NOTE: Synchronized.
 
   // Reset everything.
@@ -127,8 +128,7 @@ test('createAsyncFnQueue - create an async queue', async function (t) {
   t.true(!output.length)
 
   // The queue ignores rejections, but the caller should still handle them
-  queue.push(failer).catch(() => {})
-  await queue.empty()
+  await enqueue(failer).catch(() => {})
   t.deepEqual(expected, output) // NOTE: Synchronized.
 })
 

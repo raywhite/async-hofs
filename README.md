@@ -40,7 +40,7 @@ While async functions are expected, synchronous functions will also be composed.
 
 - **concurrency** - (`Integer`) - how many times to spawn the `async` function - defaults to `1`.
 
-Provides a queue that executes given async functions with a maximum concurrency.  Async functions are given by calling `.push()` on the returned queue object, which returns a promise that resolves or rejects when the function is eventually called.
+Provides a queue that executes given async functions with a maximum concurrency.  Async functions are given by calling the returned function, which returns a promise that resolves or rejects when the function is eventually called.
 
 Rejections do not impact the queue (other given async functions will continue to be called), but the user of the queue is responsible for handling rejections.
 
