@@ -36,6 +36,14 @@ While async functions are expected, synchronous functions will also be composed.
 
 - **...fns** (`...Function`)  
 
+### createAsyncFnQueue(*[concurrency = 1]*) => *pool*
+
+- **concurrency** - (`Integer`) - how many times to spawn the `async` function - defaults to `1`.
+
+Provides a queue that executes given async functions with a maximum concurrency.  Async functions are given by calling `.push()` on the returned queue object, which returns a promise that resolves or rejects when the function is eventually called.
+
+Rejections do not impact the queue (other given async functions will continue to be called), but the user of the queue is responsible for handling rejections.
+
 ### createAsyncFnPool(*fn*, *[concurrency = 1]*) => *pool*
 
 - **fn** - (`Function`) - an `async` function to be invoked - where it requires parameters, used `Array.prototype.bind`.
