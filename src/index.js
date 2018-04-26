@@ -43,26 +43,34 @@ const sleep = x => new Promise(r => setTimeout(r, x))
  * An `empty()` method is also provided, which resolves when all the currently
  * queued functions have completed.
  *
- * @param {Integer}
+ * QUESTION: Surely the correct teminology would be `drain` as opposed to
+ * `empty`... especially within the context of node - where `drain` is emitted
+ * when a stream.Writable has nothing to left to process, or where the event
+ * loop is referred to as being "drained" when there is nothing on it - could we
+ * change this?
+ *
+ * @param {Number}
  * @returns {Object}
  */
 function createAsyncFnQueue(concurrency = 1) {
-  const pool = [...new Array(concurrency)].map((_, idx) => Promise.resolve(idx))
+  const pool = [...new Array(concurrency)].map((_, index) => Promise.resolve(index))
 
-  const process = fn => (idx) => {
-    try {
-      const called = Promise.resolve(fn())
-      const returnIndex = () => idx
-      pool[idx] = called.then(returnIndex, returnIndex)
-      return called
-    } catch (error) {
-      return Promise.reject(error)
+  const process = function (fn) {
+    return function (index) {
+      try {
+        const called = Promise.resolve(fn())
+        const returnIndex = () => index
+        pool[index] = called.then(returnIndex, returnIndex)
+        return called
+      } catch (error) {
+        return Promise.reject(error)
+      }
     }
   }
 
   const push = fn => Promise.race(pool).then(process(fn))
 
-  // Note: probably a timing issue here, could fix but more messy above
+  // NOTE: probably a timing issue here, could fix but more messy above.
   const empty = () => sleep(0).then(() => Promise.all(pool))
 
   return { push, empty }
@@ -85,7 +93,7 @@ module.exports.createAsyncFnQueue = createAsyncFnQueue
 module.exports.createAsyncFnPool = function (fn, concurrency = 1) {
   const queue = createAsyncFnQueue(concurrency)
 
-  return new Promise((resolve, reject) => {
+  return new Promise(function (resolve, reject) {
     while (concurrency) {
       queue.push(fn).catch(reject)
       concurrency--

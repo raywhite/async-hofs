@@ -33,7 +33,7 @@ test('createRetrierFn - wraps a function for retries', async function (t) {
    */
   const createFailer = function (i) {
     return async function () {
-      sleep(0) // Forces async.
+      await sleep(0) // Forces async.
       if (i) {
         i--
         throw new Error(i)
@@ -69,7 +69,7 @@ test('createRetrierFn - wrapped functions supports variable arguments', async fu
   const createFailer = function (i) {
     return async function (a, b, c) {
       received.push([a, b, c])
-      sleep(0) // Forces async.
+      await sleep(0) // Forces async.
       if (i) {
         i--
         throw new Error(i)
