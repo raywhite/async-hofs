@@ -74,12 +74,15 @@ module.exports.createRetrierFn = function (fn, limit = 2) {
    * @param {...Mixed}
    * @returns {Mixed}
    */
-  return function (arg) {
+  return function () {
+    const args = [].slice.call(arguments)
     return new Promise(function (resolve, reject) {
       const recurse = function (err, remaining) {
         if (remaining === 0) return reject(err)
         try {
-          return fn(arg).then(resolve).catch(asyncErr => recurse(asyncErr, remaining - 1))
+          return fn.apply(null, args)
+            .then(resolve)
+            .catch(asyncErr => recurse(asyncErr, remaining - 1))
         } catch (syncErr) { // NOTE: Some sync error.
           return reject(syncErr)
         }
