@@ -61,6 +61,31 @@ test('createRetrierFn - wraps a function for retries', async function (t) {
   t.true(failure === 2)
 })
 
+test('createRetrierFn - wrapped functions supports variable arguments', async function (t) {
+  const { createRetrierFn } = hofs
+  const sleep = x => new Promise(r => setTimeout(r, x))
+  const received = []
+
+  const createFailer = function (i) {
+    return async function (a, b, c) {
+      received.push([a, b, c])
+      sleep(0) // Forces async.
+      if (i) {
+        i--
+        throw new Error(i)
+      }
+      return true
+    }
+  }
+
+  const succeeder = createRetrierFn(createFailer(1), 2)
+  await succeeder(1, 2, 3)
+  t.true(JSON.stringify(received) === JSON.stringify([
+    [1, 2, 3],
+    [1, 2, 3],
+  ]))
+})
+
 test('createAsyncFnPool - creates a pool of async functions', async function (t) {
   const { createAsyncFnPool } = hofs
   const input = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] // Some bunch of tasks.

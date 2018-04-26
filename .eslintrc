@@ -19,6 +19,8 @@
         "no-plusplus": 0,
         "no-loop-func": 0,
         "semi": [2, "never"],
-        "no-await-in-loop": 0
+        "no-await-in-loop": 0,
+        "prefer-rest-params": 0,
+        "prefer-spread": 0
     }
 }
