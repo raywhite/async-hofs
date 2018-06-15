@@ -86,19 +86,32 @@ module.exports.createAsyncFnPool = function (fn, concurrency = 1) {
   return Promise.all([...new Array(concurrency)].map(() => enqueue(fn)))
 }
 
+function limitRetrier(limit, delay = 0) {
+  let retries = limit
+  return function () {
+    if (retries-- < 1) return false
+    return delay
+  }
+}
+
 /**
  * Wraps a function for retrying....  takes the retry limit.
  *
- * TODO: This only supports retrying `limit` times, all retiries
- * happen immediately once the previous attempt failed - but if
- * this function also accepted a curve, and a limt, then we could make
- * it do retries at linear or exponential intervals.
+ * The limit may be given as an integer, which will cause that number of retries
+ * to be permitted with no additional delay between each.  It may also be given
+ * as a function which returns a delay, or a non-zero falsy value to stop retrying.
  *
  * @param {Function}
- * @param {Number}
+ * @param {Number | Function}
  * @returns {Function}
  */
 module.exports.createRetrierFn = function (fn, limit = 2) {
+  // Use a function to control retries, default one provides a fixed iteration
+  // limit with no delay (backwards compatible)
+  const getDelayFn = typeof limit === 'function'
+    ? limit
+    : limitRetrier(limit)
+
   /**
    * @param {...Mixed}
    * @returns {Mixed}
@@ -106,18 +119,24 @@ module.exports.createRetrierFn = function (fn, limit = 2) {
   return function () {
     const args = [].slice.call(arguments)
     return new Promise(function (resolve, reject) {
-      const recurse = function (err, remaining) {
-        if (remaining === 0) return reject(err)
-        try {
-          return fn.apply(null, args)
-            .then(resolve)
-            .catch(asyncErr => recurse(asyncErr, remaining - 1))
-        } catch (syncErr) { // NOTE: Some sync error.
-          return reject(syncErr)
+      const recurse = function (err, getDelay) {
+        const delay = getDelay()
+        if (!delay && delay !== 0) {
+          reject(err)
+          return
         }
+        setTimeout(function () {
+          try {
+            return fn.apply(null, args)
+              .then(resolve)
+              .catch(asyncErr => recurse(asyncErr, getDelay))
+          } catch (syncErr) { // NOTE: Some sync error.
+            return reject(syncErr)
+          }
+        }, delay)
       }
 
-      return recurse(null, limit)
+      return recurse(null, getDelayFn)
     })
   }
 }
