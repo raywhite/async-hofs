@@ -1,5 +1,4 @@
 /**
- *
  * @param {Mixed} value
  * @returns {Boolean}
  */
@@ -16,9 +15,7 @@ const isNumber = function (value) {
 }
 
 /**
- * The default... always yields 0, but only up to the limit.
- *
- * @param {Number} limit
+ * @param {Number}
  * @yields {Number}
  */
 const zero = function* (limit) {
@@ -30,35 +27,42 @@ const zero = function* (limit) {
 }
 
 /**
- * An example implementation of said generators.
- *
- * @param {String} limit
- * @yields {Number}
+ * @param {Number} m
+ * @param {Number} b
  */
-const linear = function* (limit) {
-  let attempt = 0
-  while (attempt < limit) {
-    yield attempt
-    attempt += 1
+const createLinear = function (m = 1, b = 0) {
+  /**
+   * @param {Number}
+   * @yields {Number}
+   */
+  const linear = function* (limit) {
+    let attempt = 0
+    while (attempt < limit) {
+      yield (m * attempt) + b
+      attempt += 1
+    }
   }
 }
 
 /**
- * Another example of said generators.
- *
- * @param {String} limit
- * @yields {Number}
+ * @param {Number}
+ * @returns {Function}
  */
-const exponential = function* (limit) {
-  let attempt = 0
-  while (attempt < limit) {
-    yield attempt * attempt
-    attempt += 1
+const createExponential = function (c = 2) {
+  /**
+   * @param {Number}
+   * @yields {Number}
+   */
+  return function* (limit) {
+    let attempt = 0
+    while (attempt < limit) {
+      yield Math.pow(c, attempt)
+      attempt += 1
+    }
   }
 }
 
 /**
- *
  * @param {Number} a
  * @param {Number} b
  * @param {Number} c
@@ -67,7 +71,7 @@ const exponential = function* (limit) {
 const createPolynomial = function (a, b, c) {
   /**
    * @param {Number}
-   * @returns {Number}
+   * @yields {Number}
    */
   return function* (limit) {
     let attempt = 0
@@ -78,6 +82,10 @@ const createPolynomial = function (a, b, c) {
   }
 }
 
+/**
+ * @param {Mixed} array
+ * @returns {Iterable}
+ */
 const createIterator = function (array) {
   if (isArray(array)) {
     array = [...array]
@@ -93,61 +101,16 @@ const createIterator = function (array) {
   }())
 }
 
-module.exports.linear = linear
-module.exports.exponential = exponential
-module.exports.polynomial = createPolynomial(1, 1, 1)
-module.exports.createIterator = createIterator
+// TODO: Make `zero` from a line.
 
 /**
- * Wraps a function for retrying....  takes the retry limit.
- *
- * TODO: This only supports retrying `limit` times, all retiries
- * happen immediately once the previous attempt failed - but if
- * this function also accepted a curve, and a limt, then we could make
- * it do retries at linear or exponential intervals.
- *
- * @param {Function}
- * @param {Number}
- * @returns {Function}
- */
-module.exports.createRetrierFn = function (fn, limit = 2) {
-  /**
-   * @param {...Mixed}
-   * @returns {Mixed}
-   */
-  return function () {
-    const args = [].slice.call(arguments)
-    return new Promise(function (resolve, reject) {
-      const recurse = function (err, remaining) {
-        if (remaining === 0) return reject(err)
-        try {
-          return fn.apply(null, args)
-            .then(resolve)
-            .catch(asyncErr => recurse(asyncErr, remaining - 1))
-        } catch (syncErr) { // NOTE: Some sync error.
-          return reject(syncErr)
-        }
-      }
-
-      return recurse(null, limit)
-    })
-  }
-}
-
-/**
- *
- * TODO: This should optionally take a function that can be either an generator,
- * function, or iterator and that can be used to return the timeout period for
- * the next iteration.
- *
- * The expected API takes these params;
  *
  * @param {Function}
  * @param {Function|Iterable|String}
  * @param {String} optional
  * @returns {Function}
  */
-const _createRetrierFn = function (fn, curve = 2, limit = 2) {
+const createRetrierFn = function (fn, curve = 2, limit = 2) {
   return function () {
     let iterator
 
@@ -175,7 +138,7 @@ const _createRetrierFn = function (fn, curve = 2, limit = 2) {
             return fn.apply(null, args)
               .then(resolve)
               .catch(asyncErr => recurse(asyncErr))
-          } catch (syncErr) { // NOTE: Some sync error.
+          } catch (syncErr) {
             return reject(syncErr)
           }
         }
@@ -185,7 +148,7 @@ const _createRetrierFn = function (fn, curve = 2, limit = 2) {
             return fn.apply(null, args)
               .then(resolve)
               .catch(asyncErr => recurse(asyncErr))
-          } catch (syncErr) { // NOTE: Some sync error.
+          } catch (syncErr) {
             return reject(syncErr)
           }
         }, value)
@@ -196,4 +159,4 @@ const _createRetrierFn = function (fn, curve = 2, limit = 2) {
   }
 }
 
-module.exports.createRetrierFn = _createRetrierFn
+module.exports.createRetrierFn = createRetrierFn
