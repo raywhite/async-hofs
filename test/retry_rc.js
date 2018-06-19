@@ -69,5 +69,62 @@ test('_createRetrierFn - wrapped functions supports variable arguments', async f
   ]))
 })
 
-test.todo('_createRetrierFunction - supports passing of various types / limits')
+test('_createRetrierFunction - allow many types to be passed', async function (t) {
+  const createPusher = function (iterations, cache) {
+    return async function (value) {
+      cache.push(value)
+      iterations = iterations - 1
+      if (iterations !== 0) throw new Error()
+      return value
+    }
+  }
+
+  const cache = []
+  cache.length = 0
+  let fx = createPusher(2, cache)
+
+  // No extra params.
+  let fn = createRetrierFn(fx)
+  let value = await fn('x')
+  t.true(value === 'x')
+  t.true(cache.length === 2)
+
+  cache.length = 0
+  fx = createPusher(6, cache)
+
+  // Passing a `Number`.
+  fn = createRetrierFn(fx, 6)
+  value = await fn('x')
+  t.true(value === 'x')
+  t.true(cache.length === 6)
+
+  cache.length = 0
+  fx = createPusher(6, cache)
+
+  // Passing an `Array`.
+  fn = createRetrierFn(fx, [1, 2, 3, 4, 5, 6])
+  value = await fn('x')
+  t.true(value === 'x')
+  t.true(cache.length === 6)
+
+  cache.length = 0
+  fx = createPusher(6, cache)
+
+  // Passing a generator function, and limit.
+  fn = createRetrierFn(fx, function* (limit) {
+    while (limit) yield 0
+  }, 6)
+
+  value = await fn('x')
+  t.true(value === 'x')
+  t.true(cache.length === 6)
+
+  cache.length = 0
+  fx = createPusher(6, cache)
+
+  // TODO:
+  // Passing a regular function, that returns a number.
+  // Passing a regular function, that returns an array.
+  // Passing a regular function, that returns another function.
+})
 
