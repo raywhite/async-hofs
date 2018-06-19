@@ -1,14 +1,4 @@
 /**
- * Assertion that the value is is a promise.
- *
- * @param {Mixed} value
- * @returns {Boolean}
- */
-const isPromise = function (value) {
-  return value instanceof Promise
-}
-
-/**
  *
  * @param {Mixed} value
  * @returns {Boolean}
@@ -75,7 +65,6 @@ const exponential = function* (limit) {
  * @returns {Function}
  */
 const createPolynomial = function (a, b, c) {
-
   /**
    * @param {Number}
    * @returns {Number}
@@ -90,9 +79,17 @@ const createPolynomial = function (a, b, c) {
 }
 
 const createIterator = function (array) {
-  array = [...array]
+  if (isArray(array)) {
+    array = [...array]
+    return (function* () {
+      yield* array
+    }())
+  }
+
+  const fn = array
   return (function* () {
-    yield *array
+    const value = fn()
+    if (value === -1 || value === false) yield value
   }())
 }
 
@@ -100,6 +97,42 @@ module.exports.linear = linear
 module.exports.exponential = exponential
 module.exports.polynomial = createPolynomial(1, 1, 1)
 module.exports.createIterator = createIterator
+
+/**
+ * Wraps a function for retrying....  takes the retry limit.
+ *
+ * TODO: This only supports retrying `limit` times, all retiries
+ * happen immediately once the previous attempt failed - but if
+ * this function also accepted a curve, and a limt, then we could make
+ * it do retries at linear or exponential intervals.
+ *
+ * @param {Function}
+ * @param {Number}
+ * @returns {Function}
+ */
+module.exports.createRetrierFn = function (fn, limit = 2) {
+  /**
+   * @param {...Mixed}
+   * @returns {Mixed}
+   */
+  return function () {
+    const args = [].slice.call(arguments)
+    return new Promise(function (resolve, reject) {
+      const recurse = function (err, remaining) {
+        if (remaining === 0) return reject(err)
+        try {
+          return fn.apply(null, args)
+            .then(resolve)
+            .catch(asyncErr => recurse(asyncErr, remaining - 1))
+        } catch (syncErr) { // NOTE: Some sync error.
+          return reject(syncErr)
+        }
+      }
+
+      return recurse(null, limit)
+    })
+  }
+}
 
 /**
  *
@@ -114,38 +147,47 @@ module.exports.createIterator = createIterator
  * @param {String} optional
  * @returns {Function}
  */
-const createRetrierFn = function (fn, curve = 2, limit = 2) {
-  let iterator
-
-  if (isNumber(curve)) {
-    limit = curve
-    iterator = zero(limit)
-  } else if (isArray(curve)) {
-    iterator = createIterator(curve)
-  } else {
-    iterator = curve(limit)
-  }
-
+const _createRetrierFn = function (fn, curve = 2, limit = 2) {
   return function () {
-    const args = Array.prototype.slice(arguments)
+    let iterator
+
+    if (isNumber(curve)) {
+      limit = curve
+      iterator = zero(limit)
+    } else if (isArray(curve)) {
+      iterator = createIterator(curve)
+    } else {
+      iterator = curve(limit)
+    }
+
+    if (typeof iterator.next !== 'function') {
+      iterator = createIterator(iterator)
+    }
+
+    const args = Array.prototype.slice.call(arguments)
 
     return new Promise(function (resolve, reject) {
-      const escher = function () {
-        try {
-          return fn(...args).then(resolve).catch(err => recurse(err))
-        } catch (err) {
-          return reject(err)
-        }
-      }
-
       const recurse = function (err) {
         const { value, done } = iterator.next()
         if (done) return reject(err)
-        if (isPromise(value)) return value.then(escher)
-        if (value === 0) return escher()
+        if (value === 0) {
+          try {
+            return fn.apply(null, args)
+              .then(resolve)
+              .catch(asyncErr => recurse(asyncErr))
+          } catch (syncErr) { // NOTE: Some sync error.
+            return reject(syncErr)
+          }
+        }
 
         return setTimeout(function () {
-          return escher()
+          try {
+            return fn.apply(null, args)
+              .then(resolve)
+              .catch(asyncErr => recurse(asyncErr))
+          } catch (syncErr) { // NOTE: Some sync error.
+            return reject(syncErr)
+          }
         }, value)
       }
 
@@ -154,4 +196,4 @@ const createRetrierFn = function (fn, curve = 2, limit = 2) {
   }
 }
 
-module.exports.createRetrierFn = createRetrierFn
+module.exports.createRetrierFn = _createRetrierFn
