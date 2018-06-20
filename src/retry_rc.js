@@ -2,29 +2,13 @@
  * @param {Mixed} value
  * @returns {Boolean}
  */
-const isArray = function (value) {
-  return Array.isArray(value)
-}
+const isArray = value => Array.isArray(value)
 
 /**
  *
  * @param {Mixed} value
  */
-const isNumber = function (value) {
-  return typeof value === 'number'
-}
-
-/**
- * @param {Number}
- * @yields {Number}
- */
-const zero = function* (limit) {
-  let attempt = 0
-  while (attempt < limit) {
-    yield 0
-    attempt += 1
-  }
-}
+const isNumber = value => typeof value === 'number'
 
 /**
  * @param {Number} m
@@ -35,7 +19,7 @@ const createLinear = function (m = 1, b = 0) {
    * @param {Number}
    * @yields {Number}
    */
-  const linear = function* (limit) {
+  return function* (limit) {
     let attempt = 0
     while (attempt < limit) {
       yield (m * attempt) + b
@@ -56,7 +40,7 @@ const createExponential = function (c = 2) {
   return function* (limit) {
     let attempt = 0
     while (attempt < limit) {
-      yield Math.pow(c, attempt)
+      yield Math.pow(c, attempt) // eslint-disable-line no-restricted-properties
       attempt += 1
     }
   }
@@ -83,6 +67,14 @@ const createPolynomial = function (a, b, c) {
 }
 
 /**
+ * This is a flatline curve... always returns 0.
+ *
+ * @param {Number}
+ * @yields {Number}
+ */
+const zero = createLinear(0, 0)
+
+/**
  * @param {Mixed} array
  * @returns {Iterable}
  */
@@ -96,15 +88,18 @@ const createIterator = function (array) {
 
   const fn = array
   return (function* () {
-    const value = fn()
-    if (value === -1 || value === false) yield value
+    while (true) {
+      const value = fn()
+      if (value !== -1 && value !== false && value !== undefined) {
+        yield value
+      } else {
+        break
+      }
+    }
   }())
 }
 
-// TODO: Make `zero` from a line.
-
 /**
- *
  * @param {Function}
  * @param {Function|Iterable|String}
  * @param {String} optional
@@ -123,6 +118,7 @@ const createRetrierFn = function (fn, curve = 2, limit = 2) {
       iterator = curve(limit)
     }
 
+    // There iterator itself must be a function.
     if (typeof iterator.next !== 'function') {
       iterator = createIterator(iterator)
     }
@@ -159,4 +155,7 @@ const createRetrierFn = function (fn, curve = 2, limit = 2) {
   }
 }
 
+module.exports.createLinear = createLinear
+module.exports.createExponential = createExponential
+module.exports.createPolynomial = createPolynomial
 module.exports.createRetrierFn = createRetrierFn
