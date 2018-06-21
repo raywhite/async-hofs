@@ -32,7 +32,7 @@ const createLinear = function (m = 1, b = 0) {
  * @param {Number}
  * @returns {Function}
  */
-const createExponential = function (c = 2) {
+const createExponential = function (c = 2, m = 1) {
   /**
    * @param {Number}
    * @yields {Number}
@@ -40,7 +40,13 @@ const createExponential = function (c = 2) {
   return function* (limit) {
     let attempt = 0
     while (attempt < limit) {
-      yield Math.pow(c, attempt) // eslint-disable-line no-restricted-properties
+      if (attempt === 0) {
+        yield 0
+        attempt += 1
+        continue // eslint-disable-line no-continue
+      }
+
+      yield Math.pow(c, attempt) * m // eslint-disable-line no-restricted-properties
       attempt += 1
     }
   }
@@ -60,19 +66,11 @@ const createPolynomial = function (a, b, c) {
   return function* (limit) {
     let attempt = 0
     while (attempt < limit) {
-      yield yield (a * attempt) + (b * attempt) + c
-      attempt += 1
+      yield (a * attempt) + (b * attempt) + c
+      attempt = yield 0
     }
   }
 }
-
-/**
- * This is a flatline curve... always returns 0.
- *
- * @param {Number}
- * @yields {Number}
- */
-const zero = createLinear(0, 0)
 
 /**
  * @param {Mixed} array
@@ -111,7 +109,7 @@ const createRetrierFn = function (fn, curve = 2, limit = 2) {
 
     if (isNumber(curve)) {
       limit = curve
-      iterator = zero(limit)
+      iterator = createLinear(0, 0)(limit)
     } else if (isArray(curve)) {
       iterator = createIterator(curve)
     } else {

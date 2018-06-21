@@ -1,10 +1,10 @@
 const test = require('ava')
-const { createRetrierFn } = require('../src/retry_rc')
-/**
- * TODO: Maybe more strategies for this functions,
- * like linear and exponential backoff - a curve fn
- * could be supplied as another param.
- */
+const {
+  createLinear,
+  createExponential,
+  createRetrierFn,
+} = require('../src/retry_rc')
+
 test('_createRetrierFn - wraps a function for retries', async function (t) {
   const sleep = x => new Promise(r => setTimeout(r, x))
 
@@ -184,5 +184,16 @@ test('_createRetrierFn - allow many types to be passed', async function (t) {
 
   cache.length = 0
   fx = createPusher(6, cache)
+})
+
+test('createRetrierFn - and inbuilt curves', async function (t) {
+  let line = createLinear(2, 0)(6)
+  t.deepEqual([...line], [0, 2, 4, 6, 8, 10])
+
+  line = createExponential(2, 1000)(6)
+  t.deepEqual([...line], [0, 2000, 4000, 8000, 16000, 32000])
+
+  line = createExponential(2, 1)(6)
+  t.deepEqual([...line], [0, 2, 4, 8, 16, 32])
 })
 
