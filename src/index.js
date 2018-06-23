@@ -1,3 +1,5 @@
+Object.assign(module.exports, require('./retrier'))
+
 /**
  * Determines whether a value is a thenable, or a standard promise.
  *
@@ -208,60 +210,53 @@ module.exports.createAsyncFnPool = function (fn, concurrency = 1, ...args) {
   return Promise.all(queue)
 }
 
-const limitRetrier = function (limit, delay = 0) {
-  let retries = limit
-  return function () {
-    if (retries-- < 1) return false
-    return delay
-  }
-}
-
 /**
- * Wraps a function for retrying....  takes the retry limit.
- *
- * The limit may be given as an integer, which will cause that number of retries
- * to be permitted with no additional delay between each.  It may also be given
- * as a function which returns a delay, or a non-zero falsy value to stop retrying.
- *
- * @param {Function}
- * @param {Number | Function}
+ * @pararm {Function}
  * @returns {Function}
  */
-module.exports.createRetrierFn = function (fn, limit = 2) {
-  // Use a function to control retries, default one provides a fixed iteration
-  // limit with no delay (backwards compatible)
-  const getDelayFn = typeof limit === 'function'
-    ? limit
-    : limitRetrier(limit)
-
+const createSequencer = function (method) {
   /**
-   * @param {...Mixed}
-   * @returns {Mixed}
+   * Sequence or compose the provided args, even if they
+   * aren't functions that return promises.
+   *
+   * NOTE: The only difference between sequence and compose
+   * is the direction in which the args are consumed.
+   *
+   * @param {...Function}
+   * @returns {Function}
    */
-  return function () {
-    const args = [].slice.call(arguments)
-    return new Promise(function (resolve, reject) {
-      const recurse = function (err, getDelay) {
-        const delay = getDelay()
-        if (!delay && delay !== 0) {
-          reject(err)
-          return
-        }
-        setTimeout(function () {
-          try {
-            return fn.apply(null, args)
-              .then(resolve)
-              .catch(asyncErr => recurse(asyncErr, getDelay))
-          } catch (syncErr) { // NOTE: Some sync error.
-            return reject(syncErr)
-          }
-        }, delay)
-      }
+  return function (...fns) {
+    /**
+     * @param {Mixed}
+     * @returns {Promise => Mixed}
+     */
+    return function (v) {
+      return new Promise(function (resolve, reject) {
+        const recurse = function (_v) {
+          const fn = method.call(fns)
 
-      return recurse(null, getDelayFn)
-    })
+          try {
+            if (fn) {
+              _v = fn(_v)
+              if (!isPromise(_v)) _v = Promise.resolve(_v)
+              return _v.then(recurse).catch(reject)
+            }
+          } catch (serr) {
+            return reject(serr) // NOTE: ßSome sync error.
+          }
+
+          return _v
+        }
+
+        return recurse(v).then(resolve)
+      })
+    }
   }
 }
+
+// `sequence` => left to right <= `compose`.
+module.exports.sequence = createSequencer(Array.prototype.shift)
+module.exports.compose = createSequencer(Array.prototype.pop)
 
 // TODO: This will consume the stream... so has to error.
 module.exports.buffer = (function () {

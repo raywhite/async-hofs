@@ -3,9 +3,9 @@ const {
   createLinear,
   createExponential,
   createRetrierFn,
-} = require('../src/retry_rc')
+} = require('../src/retrier')
 
-test('_createRetrierFn - wraps a function for retries', async function (t) {
+test('createRetrierFn - wraps a function for retries', async function (t) {
   const sleep = x => new Promise(r => setTimeout(r, x))
 
   /**
@@ -45,7 +45,7 @@ test('_createRetrierFn - wraps a function for retries', async function (t) {
   t.true(failure === 2)
 })
 
-test('_createRetrierFn - wrapped functions supports variable arguments', async function (t) {
+test('createRetrierFn - wrapped functions supports variable arguments', async function (t) {
   const sleep = x => new Promise(r => setTimeout(r, x))
   const received = []
 
@@ -69,7 +69,7 @@ test('_createRetrierFn - wrapped functions supports variable arguments', async f
   ]))
 })
 
-test('_createRetrierFn - allow many types to be passed', async function (t) {
+test('createRetrierFn - allow many types to be passed', async function (t) {
   const createPusher = function (iterations, cache) {
     let i = iterations
     return async function (value) {
