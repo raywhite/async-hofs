@@ -355,26 +355,3 @@ const benchmark = function (fn, precision = 'ms', ...args) {
 }
 
 module.exports.benchmark = benchmark
-
-/**
- * Creates a through (transform) stream that emits `shard` events
- * - used to write to shards... not sure if this is the best
- * implementation for this sort of thing yet... so I might keep
- * it away from the docs for now :(
- *
- * @param {Function}
- * @returns {stream.Transform}
- */
-const createSharderStream = function (fn) {
-  return new Transform({
-    transform(chunk, encoding, callback) {
-      const [shard, ...values] = fn(chunk, encoding)
-      if (shard) this.emit('shard', ...values)
-      process.nextTick(this.push.bind(this, chunk))
-      callback()
-    },
-  })
-}
-
-
-module.exports.createSharderStream = createSharderStream
