@@ -1,5 +1,3 @@
-const { Transform } = require('stream')
-
 /**
  * This one is in no way an async util... but I'm using it heaps
  * and just want somewhere safe to export form ATM.
@@ -341,6 +339,82 @@ module.exports.createCLockedFn = createCLockedFn
 module.exports.clock = createCLockedFn
 
 /**
+ * The returned `lock` function returns a promise that resolves with `release`.
+ *
+ * The user must ensure that `release` is called whenever work is complete.
+ *
+ * @param {Number} concurrency
+ * @returns {Function}
+ */
+const createConcurrencyLock = function (concurrency = 3) {
+  let pending = 0
+  const scheduled = []
+
+  const unlock = function () {
+    pending -= 1
+    if (scheduled.length) scheduled.pop()(unlock)
+    return scheduled.length
+  }
+
+  return function lock() {
+    pending += 1
+    return new Promise(function (resolve) {
+      if (pending > concurrency) {
+        return scheduled.push(resolve)
+      }
+
+      return resolve(unlock)
+    })
+  }
+}
+
+module.exports.createConcurrencyLock = createConcurrencyLock
+
+/**
+ * TODO: This is almost API compatible with createCLockedFunction... but it
+ * uses `createConcurrencyLock` internally, and can synchronise the locking
+ * of any number of functions (as opposed to just one).
+ *
+ * @param {Number} concurrency
+ * @param {...Function} fns
+ */
+const createConcurrencyLockedFn = function (concurrency, ...fns) {
+  const lock = createConcurrencyLock(concurrency)
+
+  const _createConcurrencyLockedFn = function (fn) {
+    return function (...args) {
+      return new Promise(function (resolve, reject) {
+        lock().then(function (release) {
+          /**
+           * NOTE: `Promise.prototype.finally` is a TC39 proposal, it is
+           * perfect for the use case below. Switch to:
+           *
+           * ```
+           * return fn(...args).then(resolve).catch(reject).finally(release)
+           * ```
+           *
+           * whenever it's available.
+           */
+          return fn(...args).then(function (value) {
+            resolve(value)
+            return release()
+          }).catch(function (err) {
+            reject(err)
+            return release()
+          })
+        })
+      })
+    }
+  }
+
+  if (fns.length === 0) return null
+  if (fns.length === 1) return _createConcurrencyLockedFn(fns.pop())
+  return fns.map(_createConcurrencyLockedFn)
+}
+
+module.exports.createConcurrencyLockedFn = createConcurrencyLockedFn
+
+/**
  * Returns a promise that resolves after `ms` milliseconds.
  *
  * @param {Number} ms
@@ -352,6 +426,9 @@ const sleep = function (ms = 1000) {
     return setTimeout(resolve, ms)
   })
 }
+
+// NOTE: This is exported for tests.
+module.exports.sleep = sleep
 
 /**
  * Returns a rate limited version of the provided async function. The returned
@@ -379,12 +456,14 @@ const createRateLimitedFn = function (fn, rate = 1, interval = 1000) {
   }
 
   const schedule = function (resolve, reject, ...args) {
-    if (count > rate) pending.push(function () {
-      enqueue()
-      return fn(...args).then(resolve).catch(reject)
-    })
+    if (count > rate) {
+      pending.push(function () {
+        enqueue()
+        return fn(...args).then(resolve).catch(reject)
+      })
+    }
 
-    enqeue()
+    enqueue()
     return fn(...args).then(resolve).catch(reject)
   }
 
@@ -397,6 +476,8 @@ const createRateLimitedFn = function (fn, rate = 1, interval = 1000) {
     })
   }
 }
+
+module.exports.createRateLimitedFn = createRateLimitedFn
 
 /**
  * Time the execustion of some async function.
