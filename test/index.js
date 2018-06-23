@@ -363,6 +363,63 @@ test('clock - returns a functions that limits concurrent calls', async function 
   t.true(v === PASSTROUGH)
 })
 
+test.cb('createConcurrencyLock', function (t) {
+  const { sleep, createConcurrencyLock } = hofs
+  const lock = createConcurrencyLock(1)
+
+  const first = lock()
+  t.true(typeof first.then === 'function')
+
+  const cache = []
+
+  const second = lock()
+  second.then(function (release) {
+    cache.push(2)
+    release()
+  })
+
+  first.then(async function (release) {
+    cache.push(1)
+    t.true(cache.length === 1)
+
+    await sleep()
+    t.true(cache.length === 1)
+    t.true(cache[0] === 1)
+    release() // Releases the first lock.
+
+    await sleep()
+    t.true(cache.length === 2)
+    t.true(cache[0] === 1)
+    t.true(cache[1] === 2)
+
+    t.end()
+  })
+})
+
+test.cb('createConcurrencyLockedFn', function (t) {
+  const { sleep, createConcurrencyLockedFn } = hofs
+  const cache = []
+  const fn = createConcurrencyLockedFn(1, async function (value, ms) {
+    await sleep(ms)
+    cache.push(value)
+  })
+
+  fn(1, 24).then(function () {
+    t.true(cache.length === 1)
+    t.true(cache[0] === 1)
+  })
+
+  fn(2, 8).then(function () {
+    t.true(cache.length === 2)
+    t.true(cache[0] === 1)
+    t.true(cache[1] === 2)
+    t.end()
+  })
+
+  t.true(cache.length === 0)
+})
+
+
 test('benchmark - times an async function', async function (t) {
   const { benchmark } = hofs
 

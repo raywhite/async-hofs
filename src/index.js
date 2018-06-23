@@ -445,10 +445,10 @@ const createRateLimitedFn = function (fn, rate = 1, interval = 1000) {
   const pending = []
 
   const enqueue = function () {
-    count = count + 1
+    count++
 
     sleep(interval).then(function () {
-      count = count - 1
+      count--
       if (pending <= rate && pending.length) {
         pending.pop()()
       }
