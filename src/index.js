@@ -1,4 +1,5 @@
 const { Transform } = require('stream')
+
 /**
  * This one is in no way an async util... but I'm using it heaps
  * and just want somewhere safe to export form ATM.
@@ -6,6 +7,11 @@ const { Transform } = require('stream')
  * NOTE: This is a fast simple implementation of a function
  * that can memoizes against a single (`string || number`)
  * param.
+ *
+ * TODO: This should actually be able to able handle memoization of async
+ * functions, and might be useful for debouncing network calls - it should
+ * cache the promise that is returned, so as to only allow the function to
+ * actually make an I/O call every `ms` milliseconds.
  *
  * @param {Function}
  * @returns {Function}
@@ -82,7 +88,6 @@ module.exports.createAsyncFnQueue = createAsyncFnQueue
  */
 module.exports.createAsyncFnPool = function (fn, concurrency = 1) {
   const enqueue = createAsyncFnQueue(concurrency)
-
   return Promise.all([...new Array(concurrency)].map(() => enqueue(fn)))
 }
 
@@ -142,11 +147,13 @@ module.exports.createRetrierFn = function (fn, limit = 2) {
 }
 
 /**
+ * Determines whether a value is a thenable, or a standard promise.
+ *
  * @param {Mixed}
  * @returns {Boolean}
  */
-const isPromise = function (x) {
-  return x instanceof Promise
+const isPromise = function (value) {
+  return value instanceof Promise || value.then
 }
 
 /**
@@ -332,6 +339,64 @@ const createCLockedFn = function (fn, concurrency = 1) {
 // Exported with an alias - which makes more sense.
 module.exports.createCLockedFn = createCLockedFn
 module.exports.clock = createCLockedFn
+
+/**
+ * Returns a promise that resolves after `ms` milliseconds.
+ *
+ * @param {Number} ms
+ * @returns {Void}
+ * @private
+ */
+const sleep = function (ms = 1000) {
+  return new Promise(function (resolve) {
+    return setTimeout(resolve, ms)
+  })
+}
+
+/**
+ * Returns a rate limited version of the provided async function. The returned
+ * function can be invoked at any rate, but will be executed a maximum of
+ * `rate` times per `interval`.
+ *
+ * @param {Function} fn
+ * @param {Number} rate
+ * @param {Number} interval
+ * @returns {Function}
+ */
+const createRateLimitedFn = function (fn, rate = 1, interval = 1000) {
+  let count = 0
+  const pending = []
+
+  const enqueue = function () {
+    count = count + 1
+
+    sleep(interval).then(function () {
+      count = count - 1
+      if (pending <= rate && pending.length) {
+        pending.pop()()
+      }
+    })
+  }
+
+  const schedule = function (resolve, reject, ...args) {
+    if (count > rate) pending.push(function () {
+      enqueue()
+      return fn(...args).then(resolve).catch(reject)
+    })
+
+    enqeue()
+    return fn(...args).then(resolve).catch(reject)
+  }
+
+  /**
+   * @param {...Mixed} args
+   */
+  return function (...args) {
+    return new Promise(function (resolve, reject) {
+      schedule(resolve, reject, ...args)
+    })
+  }
+}
 
 /**
  * Time the execustion of some async function.
