@@ -150,6 +150,42 @@ Consider the following example, where the second `async` function cannot proceed
   })
 ```
 
+For ease of use, this module provides some built in helpers for the generation of common `curve` generators (see `createLinear` and `createExponential` below).
+
+### createLinear(*m*, *b*) => *line*
+
+Intended for use with `createRetierFn`, to create a generator function to be used as a linear `curve` generator, or simply a `line`.
+
+- **m** - the gradient of the line in `y = m * x + b`.
+- **b** - the `x` intercept of the `y` axis in `y = m * x + b`.
+- **line** - a generator that takes a limit and produces a line space for each `x` increment along that line, where `x` is the attempt inside a `retrier` resolution attempts. 
+
+Consider the example below, which could be used to produce a `retrier` function that implements linear backoff at `2` second intervals.
+
+```js
+const line = createLinear(2000, 0)
+const linespace = [...line(4)]
+// => [0, 2000, 4000, 6000]
+```
+
+### createExponential(*c*, *m*) => *curve*
+
+Intended for use with `createRetierFn`, to create a generator function to be used as an exponential `curve` generator.
+
+Intended for use with `createRetierFn`, to create a generator function to be used as a linear `curve` generator, or simply a `line`.
+
+- **c** - the constant in the equation `y = (c ** x) * m`
+- **b** - the multiplier in the equation `y = (c ** x) * m`.
+- **curve** - a generator that takes a `limit` and produces a line space for each `x` increment along that `curve` where `x` is the attempt inside a `retrier` resolution attempts. 
+
+Consider the example below, which could be used to produce a `retrier` function that implements linear backoff at `2` second intervals.
+
+```js
+const curve = createExponential(2, 1000)
+const linespace = [...curve(4)]
+// => [0, 2000, 4000, 8000]
+```
+
 ### clock(*fn*, *[concurrency = 1]*) => *clocked*
 
 Given a function `fn` and an optional `concurrency`, this function will return a version of `fn` that will schedule invocation so as to allow a maximum of `concurrency` concurrent invocations of that function. This is intended for use case where you don't want to exceed some memory or IO limit, or create a mutex (for instance to prevent concurrent access to files).
