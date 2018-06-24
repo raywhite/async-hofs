@@ -363,6 +363,33 @@ test('clock - returns a functions that limits concurrent calls', async function 
   t.true(v === PASSTROUGH)
 })
 
+test('createRateLimitedFn - limits the execution rate of a function', async function (t) {
+  const { sleep, createRateLimitedFn } = hofs
+
+  const createPusher = function (ms) {
+    const cache = []
+
+    const fn = async function (value) {
+      await sleep(ms)
+      cache.push(value)
+    }
+
+    fn.cache = cache
+    return fn
+  }
+
+  const fn = createPusher(100)
+  const rfn = createRateLimitedFn(fn, 100, 1000)
+
+  let count = 200
+  while (count > 0) rfn(count--)
+
+  await sleep(500)
+  t.true(fn.cache.length === 100)
+  await sleep(1000)
+  t.true(fn.cache.length === 200)
+})
+
 test.cb('createConcurrencyLock', function (t) {
   const { sleep, createConcurrencyLock } = hofs
   const lock = createConcurrencyLock(1)

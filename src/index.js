@@ -449,15 +449,15 @@ const createRateLimitedFn = function (fn, rate = 1, interval = 1000) {
 
     sleep(interval).then(function () {
       count--
-      if (pending <= rate && pending.length) {
+      if (count <= rate && pending.length) {
         pending.pop()()
       }
     })
   }
 
   const schedule = function (resolve, reject, ...args) {
-    if (count > rate) {
-      pending.push(function () {
+    if (count >= rate) {
+      return pending.push(function () {
         enqueue()
         return fn(...args).then(resolve).catch(reject)
       })
