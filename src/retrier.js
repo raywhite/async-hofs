@@ -80,6 +80,7 @@ const createIterator = function (array) {
   if (isArray(array)) {
     array = [...array]
     return (function* () {
+      // TODO: Should we yield 0 if it's not the first value?
       yield* array
     }())
   }

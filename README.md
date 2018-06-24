@@ -74,17 +74,45 @@ const fn = async function () {
 fn().catch(console.error.bind(console))
 ```
 
-### createRetrierFn(*fn*, *[limit = 2]*) => *retrier*
+### createRetrierFn(*fn*, *[curve = 2]*, *[limit = 2]*) => *retrier*
 
 Wraps an `async` function so that it will be attempted `limit` times before it actually rejects.
 
-**TODO:** At present this function fires of the original function as soon as the previous attempt failed - it should ideally support a linear and incremental backoff (ie. allowing it to wait *x* milliseconds before making another attempt)- and the simplest way to allow for this would be to make it accept a **curve** function and **increments** as params.
-
-Where the wrapped function rejects multiple times (exceeding the limit), the error that it finally rejects with will always be value that the last attempt rejected with.
+Where the wrapped function rejects multiple times (exceeding `limit`), the error that it finally rejects with will always be value that the last attempt rejected with.
 
 - **fn** - (`Function`) - an `async` function to be wrapped for retrying.
+- **curve** - (`Function|Array|Number`) - the number of times to retry - defaults to `2`.
 - **limit** - (`Number`) - the number of times to retry - defaults to `2`.
 - **retrier** - (`Function`) - the wrapped function.
+
+The API for passing the optional `curve` and `limit` is heavily overloaded, allowing for maximum flexibilty - the `curve` can be supplied, allowing the user to dictate the interval between attempts to resolve the wrapped function. It may be of several types;
+- Where the curve is a  `Number`, it is treated as being intended to be the `limit`, and any subsquent arguments are ignored. The wrapped `async` function will be called a maximum of `limit` times, immediately after any preceding rejection (or initially).
+- Where the `curve` is an `Array`, it is treated as a list of milliseconds to delay each attempt for, including the initial invokation, and after a preceding rejection. For instance, if the passed `curve` was `[0, 3000, 6000]`, it would first attempt invokation immediately (after `0` ms), then wait 3 seconds, then 6 seconds, before subsequent invokations.
+- Where the `curve` is a `Function`, it is expected to be a thunk, and is called with (`limit`) as it's only parameter, per invokation of the returned `retrier`. The thunk should return a function, that will be called before each each attempt at resolution, returning a number of milliseconds to delay the next invokation for, and `-1`, `false` or `undefined` to indicated that no more attempts should be made. Consider the following example as being functionally equivalent to the array above (assuming that the passed `limit` is `3`):
+
+```js
+function curve(limit) {
+  let count = 0
+  return function () {
+    if (count === limit) {
+      return -1
+    }
+
+    const ms = count++ * 3000
+    return ms
+  }
+}
+```
+
+- The recommended use of the API for precise control over timing is passing a **generator function** as `curve`, Which allows [makes state management easier](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Iterators_and_Generators) than using a thunk, leading to a slightly cleaner API for curves. The generator function will be invoked at each call of `retrier`, and should produce an iterator that determines the delay between resolution attempts. Consider the following example as being funcitonally equivalent to the array or thunk in the above examples (assuming that the passed `limit` is `3`):
+
+```js
+function* curve(limit) {
+  let count = 0
+  while (count < limit) yield count++ * 3000
+}
+>>>>>>> retrier docs
+```
 
 ### mutex(*[concurrency = 1]*) => *lock*
 
