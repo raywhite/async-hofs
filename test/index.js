@@ -119,16 +119,17 @@ test('createAsyncFnQueue - create an async queue', async function (t) {
   const sleep = x => new Promise(r => setTimeout(r, x))
   const output = []
 
-  // Check calls in order
+  // Check calls in order.
   const enqueue1 = createAsyncFnQueue(1)
   await Promise.all([
     enqueue1(() => sleep(300).then(() => output.push(1))),
     enqueue1(() => sleep(200).then(() => output.push(2))),
     enqueue1(() => sleep(100).then(() => output.push(3))),
   ])
+
   t.deepEqual(output, [1, 2, 3])
 
-  // Run them all in parallel and they'll get added in timeout order
+  // These should be added in timeout order.
   output.length = 0
   const enqueue3 = createAsyncFnQueue(3)
   await Promise.all([
@@ -136,9 +137,10 @@ test('createAsyncFnQueue - create an async queue', async function (t) {
     enqueue3(() => sleep(200).then(() => output.push(2))),
     enqueue3(() => sleep(100).then(() => output.push(3))),
   ])
+
   t.deepEqual(output, [3, 2, 1])
 
-  // Run them with a limit of 2 and the third will beat the first
+  // The third should beat the first.
   output.length = 0
   const enqueue2 = createAsyncFnQueue(2)
   await Promise.all([
@@ -146,6 +148,7 @@ test('createAsyncFnQueue - create an async queue', async function (t) {
     enqueue2(() => sleep(200).then(() => output.push(2))),
     enqueue2(() => sleep(100).then(() => output.push(3))),
   ])
+
   t.deepEqual(output, [2, 1, 3])
 
   // Ensure that rejections to not break the queue, it should function afterwards

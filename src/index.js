@@ -35,6 +35,39 @@ module.exports.memoize = function (fn) {
 }
 
 /**
+ * The returned `lock` function returns a promise that resolves with `release`.
+ *
+ * The user must ensure that `release` is called whenever work is complete.
+ *
+ * @param {Number} concurrency
+ * @returns {Function}
+ */
+const createConcurrencyLock = function (concurrency = 3) {
+  let pending = 0
+  const scheduled = []
+
+  const unlock = function () {
+    pending -= 1
+    if (scheduled.length) scheduled.pop()(unlock)
+    return scheduled.length
+  }
+
+  return function lock() {
+    pending += 1
+    return new Promise(function (resolve) {
+      if (pending > concurrency) {
+        return scheduled.push(resolve)
+      }
+
+      return resolve(unlock)
+    })
+  }
+}
+
+module.exports.createConcurrencyLock = createConcurrencyLock
+
+
+/**
  * Create a queue to handle processing of async functions with limited
  * concurrency.
  *
@@ -43,31 +76,36 @@ module.exports.memoize = function (fn) {
  * run and a result is available.
  *
  * @param {Number}
- * @returns {Function(fn => Promise)}
+ * @returns {Function}
  */
-function createAsyncFnQueue(concurrency = 1) {
-  const pool = [...new Array(concurrency)].map((_, index) => Promise.resolve(index))
-  let allocate = Promise.resolve()
+const createAsyncFnQueue = function (concurrency = 1) {
+  const lock = createConcurrencyLock(concurrency)
 
-  function process(fn) {
-    return function (index) {
-      try {
-        const called = Promise.resolve(fn())
-        const returnIndex = () => index
-        pool[index] = called.then(returnIndex, returnIndex)
-        return called
-      } catch (error) {
-        return Promise.reject(error)
-      }
-    }
+  const enqueue = function (fn) {
+    return new Promise(function (resolve, reject) {
+      return lock().then(function (release) {
+        try {
+          const res = fn()
+          if (isPromise(res)) {
+            res.then(function (value) {
+              resolve(value)
+              return release()
+            }).catch(function (err) {
+              reject(err)
+              return release()
+            })
+          }
+          resolve(res)
+          return release()
+        } catch (err) {
+          reject(err)
+          return release()
+        }
+      })
+    })
   }
 
-  function push(fn) {
-    allocate = allocate.then(() => Promise.race(pool))
-    return allocate.then(process(fn))
-  }
-
-  return push
+  return enqueue
 }
 
 module.exports.createAsyncFnQueue = createAsyncFnQueue
@@ -77,16 +115,14 @@ module.exports.createAsyncFnQueue = createAsyncFnQueue
  * fn invokations) to distribute work and help with syncronising
  * concurrency.
  *
- * NOTE: If the provided coroutine requires params, use
- * `Array.prototype.bind` to set them.
- *
  * @param {Function}
  * @param {Number}
+ * @param {...Mixed}
  * @returns {Promise => Array}
  */
-module.exports.createAsyncFnPool = function (fn, concurrency = 1) {
-  const enqueue = createAsyncFnQueue(concurrency)
-  return Promise.all([...new Array(concurrency)].map(() => enqueue(fn)))
+module.exports.createAsyncFnPool = function (fn, concurrency = 1, ...args) {
+  const queue = new Array(concurrency).fill(fn(...args))
+  return Promise.all(queue)
 }
 
 function limitRetrier(limit, delay = 0) {
@@ -337,38 +373,6 @@ const createCLockedFn = function (fn, concurrency = 1) {
 // Exported with an alias - which makes more sense.
 module.exports.createCLockedFn = createCLockedFn
 module.exports.clock = createCLockedFn
-
-/**
- * The returned `lock` function returns a promise that resolves with `release`.
- *
- * The user must ensure that `release` is called whenever work is complete.
- *
- * @param {Number} concurrency
- * @returns {Function}
- */
-const createConcurrencyLock = function (concurrency = 3) {
-  let pending = 0
-  const scheduled = []
-
-  const unlock = function () {
-    pending -= 1
-    if (scheduled.length) scheduled.pop()(unlock)
-    return scheduled.length
-  }
-
-  return function lock() {
-    pending += 1
-    return new Promise(function (resolve) {
-      if (pending > concurrency) {
-        return scheduled.push(resolve)
-      }
-
-      return resolve(unlock)
-    })
-  }
-}
-
-module.exports.createConcurrencyLock = createConcurrencyLock
 
 /**
  * TODO: This is almost API compatible with createCLockedFunction... but it
