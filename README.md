@@ -54,12 +54,7 @@ Rejections do not impact the queue (other given async functions will continue to
 Wraps an `async` function, and takes an optional concurrency. `fn` will be used to create a "green" thread (think of it like a goroutine or something)... and it will limit the concurrency with which that function is called. Consider the following example:
 
 ```js
-const { createAsyncFnPool } = require('async-hofs')
-
-const sleep = async function (value) {
-  await new Promise(r => setTimeout(r, Math.random() * 16))
-  return value
-}
+const { sleep, createAsyncFnPool } = require('async-hofs')
 
 const inputs = [1, 2, 3, 4, 5, 6]
 const outputs = []
@@ -91,11 +86,47 @@ Where the wrapped function rejects multiple times (exceeding the limit), the err
 - **limit** - (`Number`) - the number of times to retry - defaults to `2`.
 - **retrier** - (`Function`) - the wrapped function.
 
+### mutex(*[concurrency = 1]*) => *lock*
+
+Given a `concurrency`, this function will return a `lock`, which is itself a function that resolves a `release` function. The `lock` function will not resolve unless a **mutex** is available - the user must ensure that they call `release` whenever work is complete, otherwise any pending `lock()`s will not resolve.
+
+**NOTE:** this method is aliased as `createCLock` and `createConcurrencyLock` - which are just more verbose names.
+
+- **concurrency** - (`Number`) - the number of concurrent `lock()`s that may be resolved at any given time.
+- **lock** - (`Function`) - allocates a **mutex** promise.
+
+Consider the following example, where the second `async` function cannot proceed until `release` has been called inside the first:
+
+```js
+  const lock = mutex(1)
+
+  const values = []
+
+  Promise.all([
+    // First promise.
+    (async function () {
+      const release = await lock()
+      await sleep(2000)
+      values.push(1)
+      release()
+    }())
+
+    // Second promise.
+    (async function () {
+      const release = await lock()
+      values.push(2)
+      release()
+    }())
+  ]).then(function () {
+    console.log(values) // => [1, 2]
+  })
+```
+
 ### clock(*fn*, *[concurrency = 1]*) => *clocked*
 
 Given a function `fn` and an optional `concurrency`, this function will return a version of `fn` that will schedule invocation so as to allow a maximum of `concurrency` concurrent invocations of that function. This is intended for use case where you don't want to exceed some memory or IO limit, or create a mutex (for instance to prevent concurrent access to files).
 
-**NOTE:** this method is aliased as `createCLockedFn` and `createConcurrencyLockedFn` - which are really just more verbose names.
+**NOTE:** this method is aliased as `createCLockedFn` and `createConcurrencyLockedFn` - which are just more verbose names.
 
 - **fn** - (`Function`) - an `async` function to lock / release.
 - **concurrency** - (`Number`) - the number of concurrent invocations allowed - defaults to `1`.

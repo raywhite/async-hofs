@@ -147,6 +147,8 @@ const createConcurrencyLock = function (concurrency = 3) {
   return lock
 }
 
+module.exports.mutex = createConcurrencyLock
+module.exports.createCLock = createConcurrencyLock
 module.exports.createConcurrencyLock = createConcurrencyLock
 
 /**
@@ -382,6 +384,9 @@ module.exports.clock = createConcurrencyLockedFn
  * Returns a rate limited version of the provided async function. The returned
  * function can be invoked at any rate, but will be executed a maximum of
  * `rate` times per `interval`.
+ *
+ * TODO: This should likely be capable of taking multiple functions and limited
+ * their execution rate (instead of just one), like clock does.
  *
  * @param {Function} fn
  * @param {Number} rate
