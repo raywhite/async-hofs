@@ -87,7 +87,7 @@ const createIterator = function (array) {
 
   const fn = array
   return (function* () {
-    while (true) {
+    while (true) { // eslint-disable-line no-constant-condition
       const value = fn()
       if (value !== -1 && value !== false && value !== undefined) {
         yield value

@@ -210,54 +210,6 @@ module.exports.createAsyncFnPool = function (fn, concurrency = 1, ...args) {
   return Promise.all(queue)
 }
 
-/**
- * @pararm {Function}
- * @returns {Function}
- */
-const createSequencer = function (method) {
-  /**
-   * Sequence or compose the provided args, even if they
-   * aren't functions that return promises.
-   *
-   * NOTE: The only difference between sequence and compose
-   * is the direction in which the args are consumed.
-   *
-   * @param {...Function}
-   * @returns {Function}
-   */
-  return function (...fns) {
-    /**
-     * @param {Mixed}
-     * @returns {Promise => Mixed}
-     */
-    return function (v) {
-      return new Promise(function (resolve, reject) {
-        const recurse = function (_v) {
-          const fn = method.call(fns)
-
-          try {
-            if (fn) {
-              _v = fn(_v)
-              if (!isPromise(_v)) _v = Promise.resolve(_v)
-              return _v.then(recurse).catch(reject)
-            }
-          } catch (serr) {
-            return reject(serr) // NOTE: ßSome sync error.
-          }
-
-          return _v
-        }
-
-        return recurse(v).then(resolve)
-      })
-    }
-  }
-}
-
-// `sequence` => left to right <= `compose`.
-module.exports.sequence = createSequencer(Array.prototype.shift)
-module.exports.compose = createSequencer(Array.prototype.pop)
-
 // TODO: This will consume the stream... so has to error.
 module.exports.buffer = (function () {
   const LIMIT_EXCEEDED = 'byte limit exceeded'

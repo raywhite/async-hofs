@@ -111,7 +111,6 @@ function* curve(limit) {
   let count = 0
   while (count < limit) yield count++ * 3000
 }
->>>>>>> retrier docs
 ```
 
 ### mutex(*[concurrency = 1]*) => *lock*
