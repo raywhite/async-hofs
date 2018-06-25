@@ -344,7 +344,7 @@ test('clock - returns a functions that limits concurrent calls', async function 
   while (a.length < 16) a.push(fn('x'))
 
   const p = Promise.all(a)
-  t.true(fn.pending === 4)
+  t.true(fn.pending === 16)
   t.true(fn.queued === 12)
 
   let bench = process.hrtime()
@@ -435,7 +435,7 @@ test.cb('createConcurrencyLock', function (t) {
 test.cb('createConcurrencyLockedFn', function (t) {
   const { sleep, createConcurrencyLockedFn } = hofs
   const cache = []
-  const fn = createConcurrencyLockedFn(1, async function (value, ms) {
+  const fn = createConcurrencyLockedFn(async function (value, ms) {
     await sleep(ms)
     cache.push(value)
   })
@@ -453,7 +453,7 @@ test.cb('createConcurrencyLockedFn', function (t) {
   })
 
   t.true(cache.length === 0)
-})
+}, 1)
 
 
 test('benchmark - times an async function', async function (t) {

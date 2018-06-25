@@ -36,9 +36,10 @@ While async functions are expected, synchronous functions will also be composed.
 
 - **...fns** (`...Function`)
 
-### createAsyncFnQueue(*[concurrency = 1]*) => *pool*
+### createAsyncFnQueue(*[concurrency = 1]*) => *enqueue*
 
-- **concurrency** - (`Integer`) - how many times to spawn the `async` function - defaults to `1`.
+- **concurrency** - (`Number`) - how many times to spawn the `async` function - defaults to `1`.
+- **enqueue** - (`Function`) - adds a function to the internal queue.
 
 Provides a queue that executes given async functions with a maximum concurrency.  Async functions are given by calling the returned function, which returns a promise that resolves or rejects when the function is eventually called.
 
@@ -94,13 +95,22 @@ Where the wrapped function rejects multiple times (exceeding the limit), the err
 
 Given a function `fn` and an optional `concurrency`, this function will return a version of `fn` that will schedule invocation so as to allow a maximum of `concurrency` concurrent invocations of that function. This is intended for use case where you don't want to exceed some memory or IO limit, or create a mutex (for instance to prevent concurrent access to files).
 
-**NOTE:** this method is aliased as `createCLockedFn` - which was really just a more verbose name.
+**NOTE:** this method is aliased as `createCLockedFn` and `createConcurrencyLockedFn` - which are really just more verbose names.
 
 - **fn** - (`Function`) - an `async` function to lock / release.
 - **concurrency** - (`Number`) - the number of concurrent invocations allowed - defaults to `1`.
 - **clocked** - (`Function`) - the concurrency locked function.
-  - **clocked.pending** - a getter for the number of invocations currently running.
+  - **clocked.pending** - a getter for the number of invocations pending resolution.
   - **clocked.queued** - a getter for the number of calls awaiting invocation.
+
+### createRateLimitedFunction(*fn*, *[rate = 1]*, *[interval = 1000]*) => *limited*
+
+Given a function `fn` and a `rate` and `iterval`, the returned version of `fn` will be rate limited such that invokation will be limited to a maximum of `rate` calls per any rolling `interval` period. 
+
+- **fn** - (`Function`) - an `async` function to lock / release.
+- **rate** - (`Number`) - the number of concurrent invocations allowed - defaults to `1`.
+- **interval** - (`Number`) - the interval for the `rate` limit - defaults to `1000`.
+- **limited** - (`Function`) - the rate limited function.
 
 ### bechmark(*fn*, *[precision = 'ms']*, *[...args]*) => *res*
 

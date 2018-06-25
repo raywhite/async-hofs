@@ -8,6 +8,21 @@ const isPromise = function (value) {
   return value instanceof Promise || typeof value.then === 'function'
 }
 
+/**
+ * Returns a promise that resolves after `ms` milliseconds.
+ *
+ * @param {Number} ms
+ * @returns {Void}
+ * @private
+ */
+const sleep = function (ms = 1000) {
+  return new Promise(function (resolve) {
+    return setTimeout(resolve, ms)
+  })
+}
+
+// NOTE: This is exported for tests only.
+module.exports.sleep = sleep
 
 /**
  * This one is in no way an async util... but I'm using it heaps
@@ -46,6 +61,53 @@ module.exports.memoize = function (fn) {
 }
 
 /**
+ * @pararm {Function}
+ * @returns {Function}
+ */
+const createSequencer = function (method) {
+  /**
+   * Sequence or compose the provided args, even if they
+   * aren't functions that return promises.
+   *
+   * NOTE: The only difference between sequence and compose
+   * is the direction in which the args are consumed.
+   *
+   * @param {...Function}
+   * @returns {Function}
+   */
+  return function (...fns) {
+    /**
+     * @param {Mixed}
+     * @returns {Promise => Mixed}
+     */
+    return function (v) {
+      return new Promise(function (resolve, reject) {
+        const recurse = function (_v) {
+          const fn = method.call(fns)
+
+          try {
+            if (fn) {
+              _v = fn(_v)
+              if (!isPromise(_v)) _v = Promise.resolve(_v)
+              return _v.then(recurse).catch(reject)
+            }
+          } catch (serr) {
+            return reject(serr) // NOTE: ßSome sync error.
+          }
+
+          return _v
+        }
+
+        return recurse(v).then(resolve)
+      })
+    }
+  }
+}
+
+module.exports.sequence = createSequencer(Array.prototype.shift)
+module.exports.compose = createSequencer(Array.prototype.pop)
+
+/**
  * The returned `lock` function returns a promise that resolves with `release`.
  *
  * The user must ensure that `release` is called whenever work is complete.
@@ -63,7 +125,7 @@ const createConcurrencyLock = function (concurrency = 3) {
     return scheduled.length
   }
 
-  return function lock() {
+  const lock = function () {
     pending++
     return new Promise(function (resolve) {
       if (pending > concurrency) {
@@ -73,10 +135,19 @@ const createConcurrencyLock = function (concurrency = 3) {
       return resolve(unlock)
     })
   }
+
+  Object.defineProperty(lock, 'pending', {
+    get: () => pending,
+  })
+
+  Object.defineProperty(lock, 'queued', {
+    get: () => scheduled.length,
+  })
+
+  return lock
 }
 
 module.exports.createConcurrencyLock = createConcurrencyLock
-
 
 /**
  * Create a queue to handle processing of async functions with limited
@@ -92,11 +163,11 @@ module.exports.createConcurrencyLock = createConcurrencyLock
 const createAsyncFnQueue = function (concurrency = 1) {
   const lock = createConcurrencyLock(concurrency)
 
-  const enqueue = function (fn) {
+  return function (fn, ...args) {
     return new Promise(function (resolve, reject) {
       return lock().then(function (release) {
         try {
-          const res = fn()
+          const res = fn(...args)
           if (isPromise(res)) {
             return res.then(function (value) {
               resolve(value)
@@ -116,8 +187,6 @@ const createAsyncFnQueue = function (concurrency = 1) {
       })
     })
   }
-
-  return enqueue
 }
 
 module.exports.createAsyncFnQueue = createAsyncFnQueue
@@ -137,7 +206,7 @@ module.exports.createAsyncFnPool = function (fn, concurrency = 1, ...args) {
   return Promise.all(queue)
 }
 
-function limitRetrier(limit, delay = 0) {
+const limitRetrier = function (limit, delay = 0) {
   let retries = limit
   return function () {
     if (retries-- < 1) return false
@@ -191,54 +260,6 @@ module.exports.createRetrierFn = function (fn, limit = 2) {
     })
   }
 }
-
-/**
- * @pararm {Function}
- * @returns {Function}
- */
-const createSequencer = function (method) {
-  /**
-   * Sequence or compose the provided args, even if they
-   * aren't functions that return promises.
-   *
-   * NOTE: The only difference between sequence and compose
-   * is the direction in which the args are consumed.
-   *
-   * @param {...Function}
-   * @returns {Function}
-   */
-  return function (...fns) {
-    /**
-     * @param {Mixed}
-     * @returns {Promise => Mixed}
-     */
-    return function (v) {
-      return new Promise(function (resolve, reject) {
-        const recurse = function (_v) {
-          const fn = method.call(fns)
-
-          try {
-            if (fn) {
-              _v = fn(_v)
-              if (!isPromise(_v)) _v = Promise.resolve(_v)
-              return _v.then(recurse).catch(reject)
-            }
-          } catch (serr) {
-            return reject(serr) // NOTE: ßSome sync error.
-          }
-
-          return _v
-        }
-
-        return recurse(v).then(resolve)
-      })
-    }
-  }
-}
-
-// `sequence` => left to right <= `compose`.
-module.exports.sequence = createSequencer(Array.prototype.shift)
-module.exports.compose = createSequencer(Array.prototype.pop)
 
 // TODO: This will consume the stream... so has to error.
 module.exports.buffer = (function () {
@@ -298,97 +319,21 @@ module.exports.buffer = (function () {
 }())
 
 /**
- * @param {Function}
- * @param {Number}
- * @returns {Function}
- */
-const createCLockedFn = function (fn, concurrency = 1) {
-  let num = 0
-  const queue = []
-
-  /**
-   * @param {Function}
-   * @returns {Void}
-   */
-  const schedule = function (invocation) {
-    if (invocation) queue.push(invocation)
-    if (num < concurrency && queue.length) {
-      num++
-      queue.shift()()
-    }
-  }
-
-  /**
-   * NOTE: Outcome is resolve or reject.
-   *
-   * @param {Function}
-   * @returns {Void}
-   */
-  const createSolution = function (outcome) {
-    return function (v) {
-      num--
-      schedule()
-      outcome(v)
-    }
-  }
-
-  /**
-   * @param {Mixed}
-   * @returns {Promise => Mixed}
-   */
-  const clocked = function (...args) {
-    return new Promise(function (resolve, reject) {
-      const invoke = function () {
-        let v
-        try {
-          v = fn.call(null, ...args)
-        } catch (err) {
-          // The funciton threw synconously.
-          num--
-          return reject(err)
-        }
-
-        if (isPromise(v)) {
-          return v.then(createSolution(resolve)).catch(createSolution(reject))
-        }
-
-        num--
-        return resolve(v)
-      }
-
-      return schedule(invoke)
-    })
-  }
-
-  // These values can be used to determine whether to add work.
-  Object.defineProperty(clocked, 'pending', {
-    get: () => num,
-  })
-
-  Object.defineProperty(clocked, 'queued', {
-    get: () => queue.length,
-  })
-
-  return clocked
-}
-
-// Exported with an alias - which makes more sense.
-module.exports.createCLockedFn = createCLockedFn
-module.exports.clock = createCLockedFn
-
-/**
  * TODO: This is almost API compatible with createCLockedFunction... but it
  * uses `createConcurrencyLock` internally, and can synchronise the locking
  * of any number of functions (as opposed to just one).
  *
+ * @param {...Function|Function} fns
  * @param {Number} concurrency
- * @param {...Function} fns
  */
-const createConcurrencyLockedFn = function (concurrency, ...fns) {
+const createConcurrencyLockedFn = function (fns, concurrency = 1) {
+  if (typeof fns === 'function') fns = [fns]
+  const _fns = [...fns]
+
   const lock = createConcurrencyLock(concurrency)
 
-  const _createConcurrencyLockedFn = function (fn) {
-    return function (...args) {
+  const create = function (fn) {
+    const clocked = function (...args) {
       return new Promise(function (resolve, reject) {
         lock().then(function (release) {
           /**
@@ -411,30 +356,27 @@ const createConcurrencyLockedFn = function (concurrency, ...fns) {
         })
       })
     }
+
+    Object.defineProperty(clocked, 'pending', {
+      get: () => lock.pending,
+    })
+
+    Object.defineProperty(clocked, 'queued', {
+      get: () => lock.queued,
+    })
+
+    return clocked
   }
 
   if (fns.length === 0) return null
-  if (fns.length === 1) return _createConcurrencyLockedFn(fns.pop())
-  return fns.map(_createConcurrencyLockedFn)
+  if (fns.length === 1) return create(_fns.pop())
+  return fns.map(create)
 }
 
+// Exported with an alias - which makes more sense.
 module.exports.createConcurrencyLockedFn = createConcurrencyLockedFn
-
-/**
- * Returns a promise that resolves after `ms` milliseconds.
- *
- * @param {Number} ms
- * @returns {Void}
- * @private
- */
-const sleep = function (ms = 1000) {
-  return new Promise(function (resolve) {
-    return setTimeout(resolve, ms)
-  })
-}
-
-// NOTE: This is exported for tests.
-module.exports.sleep = sleep
+module.exports.createCLockedFn = createConcurrencyLockedFn
+module.exports.clock = createConcurrencyLockedFn
 
 /**
  * Returns a rate limited version of the provided async function. The returned
@@ -475,6 +417,7 @@ const createRateLimitedFn = function (fn, rate = 1, interval = 1000) {
 
   /**
    * @param {...Mixed} args
+   * @returns {Function}
    */
   return function (...args) {
     return new Promise(function (resolve, reject) {
