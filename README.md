@@ -12,7 +12,7 @@ The entire module expects a standard `Promise` implementation to be available (*
 
 ## Setup
 
-To clone run `git clone https://github.com/raywhite/async-hofs`. 
+To clone run `git clone https://github.com/raywhite/async-hofs`.
 
 Tests are written using [ava](https://github.com/avajs/ava), and can be run with `npm run test:node`. The full test suite includes linting with `eslint .` (`npm run test:lint`), and can be run with `npm run test`.
 
@@ -32,9 +32,9 @@ While async functions are expected, synchronous functions will also be composed.
 - **...fns** - (`...Function`) - any number of functions.
 - **fn** - (`Function`) - the composed function.
 
-While async functions are expected, synchronous functions will also be composed. Note that the composed function will alway return a promise. `sequence` will compose functions from  **left to right**. 
+While async functions are expected, synchronous functions will also be composed. Note that the composed function will alway return a promise. `sequence` will compose functions from  **left to right**.
 
-- **...fns** (`...Function`)  
+- **...fns** (`...Function`)
 
 ### createAsyncFnQueue(*[concurrency = 1]*) => *pool*
 
@@ -105,7 +105,7 @@ Given a function `fn` and an optional `concurrency`, this function will return a
 ### bechmark(*fn*, *[precision = 'ms']*, *[...args]*) => *res*
 
 The returned value (`res`) is a `Promise` that resolves with a tuple in the form (`time`, `value`) where `value` is the value resolved by calling `fn`, and `time` is the measured execuition time of `fn` with a precision of `precision`. Where `fn` rejects, `benchmark` itself with reject with the same value ツ.
- 
+
 - **fn** - (`Function`) - the async function to be invoked.
 - **precision** - (`String`) - a constant (`s|ms|ns`) representing the precision of the timing.
 - **args** - (`...Mixed`) - extras arguments to pass to the `fn` invokcation.

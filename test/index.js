@@ -115,50 +115,56 @@ test('createRetrierFn - allows a custom function to define delays', async functi
 })
 
 test('createAsyncFnQueue - create an async queue', async function (t) {
-  const { createAsyncFnQueue } = hofs
-  const sleep = x => new Promise(r => setTimeout(r, x))
+  const { sleep, createAsyncFnQueue } = hofs
   const output = []
 
+  const createPusher = function (n, ms) {
+    return async function () {
+      await sleep(ms)
+      return output.push(n)
+    }
+  }
+
   // Check calls in order.
-  const enqueue1 = createAsyncFnQueue(1)
+  let enqueue = createAsyncFnQueue(1)
   await Promise.all([
-    enqueue1(() => sleep(300).then(() => output.push(1))),
-    enqueue1(() => sleep(200).then(() => output.push(2))),
-    enqueue1(() => sleep(100).then(() => output.push(3))),
+    enqueue(createPusher(1, 300)),
+    enqueue(createPusher(2, 200)),
+    enqueue(createPusher(3, 100)),
   ])
 
   t.deepEqual(output, [1, 2, 3])
 
   // These should be added in timeout order.
   output.length = 0
-  const enqueue3 = createAsyncFnQueue(3)
+  enqueue = createAsyncFnQueue(3)
   await Promise.all([
-    enqueue3(() => sleep(300).then(() => output.push(1))),
-    enqueue3(() => sleep(200).then(() => output.push(2))),
-    enqueue3(() => sleep(100).then(() => output.push(3))),
+    enqueue(createPusher(1, 300)),
+    enqueue(createPusher(2, 200)),
+    enqueue(createPusher(3, 100)),
   ])
 
   t.deepEqual(output, [3, 2, 1])
 
   // The third should beat the first.
   output.length = 0
-  const enqueue2 = createAsyncFnQueue(2)
+  enqueue = createAsyncFnQueue(2)
   await Promise.all([
-    enqueue2(() => sleep(300).then(() => output.push(1))),
-    enqueue2(() => sleep(200).then(() => output.push(2))),
-    enqueue2(() => sleep(100).then(() => output.push(3))),
+    enqueue(createPusher(1, 300)),
+    enqueue(createPusher(2, 200)),
+    enqueue(createPusher(3, 100)),
   ])
 
   t.deepEqual(output, [2, 1, 3])
 
   // Ensure that rejections to not break the queue, it should function afterwards
-  await enqueue1(() => Promise.reject('w00t')).catch(() => {})
+  await createAsyncFnQueue(1)(() => Promise.reject('w00t')).catch(() => {})
 
-  // Ensure that sync functions are still returned
-  t.true(await enqueue1(() => 1) === 1)
+  // Ensure that sync functions still return correctly.
+  t.true(await createAsyncFnQueue(1)(() => 1) === 1)
 
   // Ensure that sync errors are handled by the queue
-  await enqueue1(() => { throw new Error('fail') }).catch(() => {})
+  await createAsyncFnQueue(1)(() => { throw new Error('fail') }).catch(() => {})
 })
 
 test('createAsyncFnPool - creates a pool of async functions', async function (t) {

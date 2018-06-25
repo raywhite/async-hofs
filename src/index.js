@@ -1,4 +1,15 @@
 /**
+ * Determines whether a value is a thenable, or a standard promise.
+ *
+ * @param {Mixed}
+ * @returns {Boolean}
+ */
+const isPromise = function (value) {
+  return value instanceof Promise || typeof value.then === 'function'
+}
+
+
+/**
  * This one is in no way an async util... but I'm using it heaps
  * and just want somewhere safe to export form ATM.
  *
@@ -47,13 +58,13 @@ const createConcurrencyLock = function (concurrency = 3) {
   const scheduled = []
 
   const unlock = function () {
-    pending -= 1
-    if (scheduled.length) scheduled.pop()(unlock)
+    pending--
+    if (scheduled.length) scheduled.shift()(unlock)
     return scheduled.length
   }
 
   return function lock() {
-    pending += 1
+    pending++
     return new Promise(function (resolve) {
       if (pending > concurrency) {
         return scheduled.push(resolve)
@@ -87,7 +98,7 @@ const createAsyncFnQueue = function (concurrency = 1) {
         try {
           const res = fn()
           if (isPromise(res)) {
-            res.then(function (value) {
+            return res.then(function (value) {
               resolve(value)
               return release()
             }).catch(function (err) {
@@ -95,6 +106,7 @@ const createAsyncFnQueue = function (concurrency = 1) {
               return release()
             })
           }
+
           resolve(res)
           return release()
         } catch (err) {
@@ -178,16 +190,6 @@ module.exports.createRetrierFn = function (fn, limit = 2) {
       return recurse(null, getDelayFn)
     })
   }
-}
-
-/**
- * Determines whether a value is a thenable, or a standard promise.
- *
- * @param {Mixed}
- * @returns {Boolean}
- */
-const isPromise = function (value) {
-  return value instanceof Promise || value.then
 }
 
 /**
