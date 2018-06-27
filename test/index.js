@@ -15,147 +15,57 @@ test('memoize - it\'s here for my own sake', function (t) {
   t.deepEqual({ 1: 2, 2: 3, 3: 4 }, fn.cache)
 })
 
-/**
- * TODO: Maybe more strategies for this functions,
- * like linear and exponential backoff - a curve fn
- * could be supplied as another param.
- */
-test('createRetrierFn - wraps a function for retries', async function (t) {
-  const { createRetrierFn } = hofs
-  const sleep = x => new Promise(r => setTimeout(r, x))
-
-  /**
-   * Given 'i', create function that will return a promise
-   * that rejects `i` times... then perpetually resolve.
-   *
-   * @param {Number}
-   * @returns {Promise}
-   */
-  const createFailer = function (i) {
-    return async function () {
-      await sleep(0) // Forces async.
-      if (i) {
-        i--
-        throw new Error(i)
-      }
-      return true
-    }
-  }
-
-  // Will retry three times.
-  const succeeder = createRetrierFn(createFailer(2), 3)
-  t.true(typeof succeeder === 'function')
-  const success = await succeeder()
-  t.true(success)
-
-  const failer = createRetrierFn(createFailer(4), 2)
-  t.true(typeof succeeder === 'function')
-
-  let failure
-  try {
-    failure = await failer()
-  } catch ({ message }) {
-    failure = +message // Coerce.
-  }
-
-  t.true(failure === 2)
-})
-
-test('createRetrierFn - wrapped functions supports variable arguments', async function (t) {
-  const { createRetrierFn } = hofs
-  const sleep = x => new Promise(r => setTimeout(r, x))
-  const received = []
-
-  const createFailer = function (i) {
-    return async function (a, b, c) {
-      received.push([a, b, c])
-      await sleep(0) // Forces async.
-      if (i) {
-        i--
-        throw new Error(i)
-      }
-      return true
-    }
-  }
-
-  const succeeder = createRetrierFn(createFailer(1), 2)
-  await succeeder(1, 2, 3)
-  t.true(JSON.stringify(received) === JSON.stringify([
-    [1, 2, 3],
-    [1, 2, 3],
-  ]))
-})
-
-test('createRetrierFn - allows a custom function to define delays', async function (t) {
-  const { createRetrierFn } = hofs
-  const sleep = x => new Promise(r => setTimeout(r, x))
-  const received = []
-
-  const createFailer = function (i) {
-    return async function (a, b, c) {
-      received.push([a, b, c])
-      await sleep(0) // Forces async.
-      if (i) {
-        i--
-        throw new Error(i)
-      }
-      return true
-    }
-  }
-
-  const delays = [10, 10]
-  const getDelay = () => delays.shift()
-
-  const succeeder = createRetrierFn(createFailer(1), getDelay)
-  await succeeder(1, 2, 3)
-  t.true(JSON.stringify(received) === JSON.stringify([
-    [1, 2, 3],
-    [1, 2, 3],
-  ]))
-})
-
 test('createAsyncFnQueue - create an async queue', async function (t) {
-  const { createAsyncFnQueue } = hofs
-  const sleep = x => new Promise(r => setTimeout(r, x))
+  const { sleep, createAsyncFnQueue } = hofs
   const output = []
 
-  // Check calls in order
-  const enqueue1 = createAsyncFnQueue(1)
+  const createPusher = function (n, ms) {
+    return async function () {
+      await sleep(ms)
+      return output.push(n)
+    }
+  }
+
+  // Check calls in order.
+  let enqueue = createAsyncFnQueue(1)
   await Promise.all([
-    enqueue1(() => sleep(300).then(() => output.push(1))),
-    enqueue1(() => sleep(200).then(() => output.push(2))),
-    enqueue1(() => sleep(100).then(() => output.push(3))),
+    enqueue(createPusher(1, 300)),
+    enqueue(createPusher(2, 200)),
+    enqueue(createPusher(3, 100)),
   ])
+
   t.deepEqual(output, [1, 2, 3])
 
-  // Run them all in parallel and they'll get added in timeout order
+  // These should be added in timeout order.
   output.length = 0
-  const enqueue3 = createAsyncFnQueue(3)
+  enqueue = createAsyncFnQueue(3)
   await Promise.all([
-    enqueue3(() => sleep(300).then(() => output.push(1))),
-    enqueue3(() => sleep(200).then(() => output.push(2))),
-    enqueue3(() => sleep(100).then(() => output.push(3))),
+    enqueue(createPusher(1, 300)),
+    enqueue(createPusher(2, 200)),
+    enqueue(createPusher(3, 100)),
   ])
+
   t.deepEqual(output, [3, 2, 1])
 
-  // Run them with a limit of 2 and the third will beat the first
+  // The third should beat the first.
   output.length = 0
-  const enqueue2 = createAsyncFnQueue(2)
+  enqueue = createAsyncFnQueue(2)
   await Promise.all([
-    enqueue2(() => sleep(300).then(() => output.push(1))),
-    enqueue2(() => sleep(200).then(() => output.push(2))),
-    enqueue2(() => sleep(100).then(() => output.push(3))),
+    enqueue(createPusher(1, 300)),
+    enqueue(createPusher(2, 200)),
+    enqueue(createPusher(3, 100)),
   ])
+
   t.deepEqual(output, [2, 1, 3])
 
   // Ensure that rejections to not break the queue, it should function afterwards
-  await enqueue1(() => Promise.reject('w00t')).catch(() => {})
+  await createAsyncFnQueue(1)(() => Promise.reject('w00t')).catch(() => {})
 
-  // Ensure that sync functions are still returned
-  t.true(await enqueue1(() => 1) === 1)
+  // Ensure that sync functions still return correctly.
+  t.true(await createAsyncFnQueue(1)(() => 1) === 1)
 
   // Ensure that sync errors are handled by the queue
-  await enqueue1(() => { throw new Error('fail') }).catch(() => {})
+  await createAsyncFnQueue(1)(() => { throw new Error('fail') }).catch(() => {})
 })
 
 test('createAsyncFnPool - creates a pool of async functions', async function (t) {
@@ -335,7 +245,7 @@ test('clock - returns a functions that limits concurrent calls', async function 
   while (a.length < 16) a.push(fn('x'))
 
   const p = Promise.all(a)
-  t.true(fn.pending === 4)
+  t.true(fn.pending === 16)
   t.true(fn.queued === 12)
 
   let bench = process.hrtime()
@@ -362,6 +272,90 @@ test('clock - returns a functions that limits concurrent calls', async function 
 
   t.true(v === PASSTROUGH)
 })
+
+test('createRateLimitedFn - limits the execution rate of a function', async function (t) {
+  const { sleep, createRateLimitedFn } = hofs
+
+  const createPusher = function (ms) {
+    const cache = []
+
+    const fn = async function (value) {
+      await sleep(ms)
+      cache.push(value)
+    }
+
+    fn.cache = cache
+    return fn
+  }
+
+  const fn = createPusher(100)
+  const rfn = createRateLimitedFn(fn, 100, 1000)
+
+  let count = 200
+  while (count > 0) rfn(count--)
+
+  await sleep(500)
+  t.true(fn.cache.length === 100)
+  await sleep(1000)
+  t.true(fn.cache.length === 200)
+})
+
+test.cb('createConcurrencyLock', function (t) {
+  const { sleep, createConcurrencyLock } = hofs
+  const lock = createConcurrencyLock(1)
+
+  const first = lock()
+  t.true(typeof first.then === 'function')
+
+  const cache = []
+
+  const second = lock()
+  second.then(function (release) {
+    cache.push(2)
+    release()
+  })
+
+  first.then(async function (release) {
+    cache.push(1)
+    t.true(cache.length === 1)
+
+    await sleep()
+    t.true(cache.length === 1)
+    t.true(cache[0] === 1)
+    release() // Releases the first lock.
+
+    await sleep()
+    t.true(cache.length === 2)
+    t.true(cache[0] === 1)
+    t.true(cache[1] === 2)
+
+    t.end()
+  })
+})
+
+test.cb('createConcurrencyLockedFn', function (t) {
+  const { sleep, createConcurrencyLockedFn } = hofs
+  const cache = []
+  const fn = createConcurrencyLockedFn(async function (value, ms) {
+    await sleep(ms)
+    cache.push(value)
+  })
+
+  fn(1, 24).then(function () {
+    t.true(cache.length === 1)
+    t.true(cache[0] === 1)
+  })
+
+  fn(2, 8).then(function () {
+    t.true(cache.length === 2)
+    t.true(cache[0] === 1)
+    t.true(cache[1] === 2)
+    t.end()
+  })
+
+  t.true(cache.length === 0)
+}, 1)
+
 
 test('benchmark - times an async function', async function (t) {
   const { benchmark } = hofs

@@ -12,7 +12,7 @@ The entire module expects a standard `Promise` implementation to be available (*
 
 ## Setup
 
-To clone run `git clone https://github.com/raywhite/async-hofs`. 
+To clone run `git clone https://github.com/raywhite/async-hofs`.
 
 Tests are written using [ava](https://github.com/avajs/ava), and can be run with `npm run test:node`. The full test suite includes linting with `eslint .` (`npm run test:lint`), and can be run with `npm run test`.
 
@@ -32,13 +32,14 @@ While async functions are expected, synchronous functions will also be composed.
 - **...fns** - (`...Function`) - any number of functions.
 - **fn** - (`Function`) - the composed function.
 
-While async functions are expected, synchronous functions will also be composed. Note that the composed function will alway return a promise. `sequence` will compose functions from  **left to right**. 
+While async functions are expected, synchronous functions will also be composed. Note that the composed function will alway return a promise. `sequence` will compose functions from  **left to right**.
 
-- **...fns** (`...Function`)  
+- **...fns** (`...Function`)
 
-### createAsyncFnQueue(*[concurrency = 1]*) => *pool*
+### createAsyncFnQueue(*[concurrency = 1]*) => *enqueue*
 
-- **concurrency** - (`Integer`) - how many times to spawn the `async` function - defaults to `1`.
+- **concurrency** - (`Number`) - how many times to spawn the `async` function - defaults to `1`.
+- **enqueue** - (`Function`) - adds a function to the internal queue.
 
 Provides a queue that executes given async functions with a maximum concurrency.  Async functions are given by calling the returned function, which returns a promise that resolves or rejects when the function is eventually called.
 
@@ -53,12 +54,7 @@ Rejections do not impact the queue (other given async functions will continue to
 Wraps an `async` function, and takes an optional concurrency. `fn` will be used to create a "green" thread (think of it like a goroutine or something)... and it will limit the concurrency with which that function is called. Consider the following example:
 
 ```js
-const { createAsyncFnPool } = require('async-hofs')
-
-const sleep = async function (value) {
-  await new Promise(r => setTimeout(r, Math.random() * 16))
-  return value
-}
+const { sleep, createAsyncFnPool } = require('async-hofs')
 
 const inputs = [1, 2, 3, 4, 5, 6]
 const outputs = []
@@ -78,34 +74,142 @@ const fn = async function () {
 fn().catch(console.error.bind(console))
 ```
 
-### createRetrierFn(*fn*, *[limit = 2]*) => *retrier*
+### createRetrierFn(*fn*, *[curve = 2]*, *[limit = 2]*) => *retrier*
 
 Wraps an `async` function so that it will be attempted `limit` times before it actually rejects.
 
-**TODO:** At present this function fires of the original function as soon as the previous attempt failed - it should ideally support a linear and incremental backoff (ie. allowing it to wait *x* milliseconds before making another attempt)- and the simplest way to allow for this would be to make it accept a **curve** function and **increments** as params.
-
-Where the wrapped function rejects multiple times (exceeding the limit), the error that it finally rejects with will always be value that the last attempt rejected with.
+Where the wrapped function rejects multiple times (exceeding `limit`), the error that it finally rejects with will always be value that the last attempt rejected with.
 
 - **fn** - (`Function`) - an `async` function to be wrapped for retrying.
+- **curve** - (`Function|Array|Number`) - the number of times to retry - defaults to `2`.
 - **limit** - (`Number`) - the number of times to retry - defaults to `2`.
 - **retrier** - (`Function`) - the wrapped function.
+
+The API for passing the optional `curve` and `limit` is heavily overloaded, allowing for maximum flexibilty - the `curve` can be supplied, allowing the user to dictate the interval between attempts to resolve the wrapped function. It may be of several types;
+- Where the curve is a  `Number`, it is treated as being intended to be the `limit`, and any subsquent arguments are ignored. The wrapped `async` function will be called a maximum of `limit` times, immediately after any preceding rejection (or initially).
+- Where the `curve` is an `Array`, it is treated as a list of milliseconds to delay each attempt for, including the initial invokation, and after a preceding rejection. For instance, if the passed `curve` was `[0, 3000, 6000]`, it would first attempt invokation immediately (after `0` ms), then wait 3 seconds, then 6 seconds, before subsequent invokations.
+- Where the `curve` is a `Function`, it is expected to be a thunk, and is called with (`limit`) as it's only parameter, per invokation of the returned `retrier`. The thunk should return a function, that will be called before each each attempt at resolution, returning a number of milliseconds to delay the next invokation for, and `-1`, `false` or `undefined` to indicated that no more attempts should be made. Consider the following example as being functionally equivalent to the array above (assuming that the passed `limit` is `3`):
+
+```js
+function curve(limit) {
+  let count = 0
+  return function () {
+    if (count === limit) {
+      return -1
+    }
+
+    const ms = count++ * 3000
+    return ms
+  }
+}
+```
+
+- The recommended use of the API for precise control over timing is passing a **generator function** as `curve`, Which allows [makes state management easier](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Iterators_and_Generators) than using a thunk, leading to a slightly cleaner API for curves. The generator function will be invoked at each call of `retrier`, and should produce an iterator that determines the delay between resolution attempts. Consider the following example as being funcitonally equivalent to the array or thunk in the above examples (assuming that the passed `limit` is `3`):
+
+```js
+function* curve(limit) {
+  let count = 0
+  while (count < limit) yield count++ * 3000
+}
+```
+
+### mutex(*[concurrency = 1]*) => *lock*
+
+Given a `concurrency`, this function will return a `lock`, which is itself a function that resolves a `release` function. The `lock` function will not resolve unless a **mutex** is available - the user must ensure that they call `release` whenever work is complete, otherwise any pending `lock()`s will not resolve.
+
+**NOTE:** this method is aliased as `createCLock` and `createConcurrencyLock` - which are just more verbose names.
+
+- **concurrency** - (`Number`) - the number of concurrent `lock()`s that may be resolved at any given time.
+- **lock** - (`Function`) - allocates a **mutex** promise.
+
+Consider the following example, where the second `async` function cannot proceed until `release` has been called inside the first:
+
+```js
+  const lock = mutex(1)
+
+  const values = []
+
+  Promise.all([
+    // First promise.
+    (async function () {
+      const release = await lock()
+      await sleep(2000)
+      values.push(1)
+      release()
+    }())
+
+    // Second promise.
+    (async function () {
+      const release = await lock()
+      values.push(2)
+      release()
+    }())
+  ]).then(function () {
+    console.log(values) // => [1, 2]
+  })
+```
+
+For ease of use, this module provides some built in helpers for the generation of common `curve` generators (see `createLinear` and `createExponential` below).
+
+### createLinear(*m*, *b*) => *line*
+
+Intended for use with `createRetierFn`, to create a generator function to be used as a linear `curve` generator, or simply a `line`.
+
+- **m** - the gradient of the line in `y = m * x + b`.
+- **b** - the `x` intercept of the `y` axis in `y = m * x + b`.
+- **line** - a generator that takes a limit and produces a line space for each `x` increment along that line, where `x` is the attempt inside a `retrier` resolution attempts. 
+
+Consider the example below, which could be used to produce a `retrier` function that implements linear backoff at `2` second intervals.
+
+```js
+const line = createLinear(2000, 0)
+const linespace = [...line(4)]
+// => [0, 2000, 4000, 6000]
+```
+
+### createExponential(*c*, *m*) => *curve*
+
+Intended for use with `createRetierFn`, to create a generator function to be used as an exponential `curve` generator.
+
+Intended for use with `createRetierFn`, to create a generator function to be used as a linear `curve` generator, or simply a `line`.
+
+- **c** - the constant in the equation `y = (c ** x) * m`
+- **b** - the multiplier in the equation `y = (c ** x) * m`.
+- **curve** - a generator that takes a `limit` and produces a line space for each `x` increment along that `curve` where `x` is the attempt inside a `retrier` resolution attempts. 
+
+Consider the example below, which could be used to produce a `retrier` function that implements linear backoff at `2` second intervals.
+
+```js
+const curve = createExponential(2, 1000)
+const linespace = [...curve(4)]
+// => [0, 2000, 4000, 8000]
+```
 
 ### clock(*fn*, *[concurrency = 1]*) => *clocked*
 
 Given a function `fn` and an optional `concurrency`, this function will return a version of `fn` that will schedule invocation so as to allow a maximum of `concurrency` concurrent invocations of that function. This is intended for use case where you don't want to exceed some memory or IO limit, or create a mutex (for instance to prevent concurrent access to files).
 
-**NOTE:** this method is aliased as `createCLockedFn` - which was really just a more verbose name.
+**NOTE:** this method is aliased as `createCLockedFn` and `createConcurrencyLockedFn` - which are just more verbose names.
 
 - **fn** - (`Function`) - an `async` function to lock / release.
 - **concurrency** - (`Number`) - the number of concurrent invocations allowed - defaults to `1`.
 - **clocked** - (`Function`) - the concurrency locked function.
-  - **clocked.pending** - a getter for the number of invocations currently running.
+  - **clocked.pending** - a getter for the number of invocations pending resolution.
   - **clocked.queued** - a getter for the number of calls awaiting invocation.
+
+### createRateLimitedFunction(*fn*, *[rate = 1]*, *[interval = 1000]*) => *limited*
+
+Given a function `fn` and a `rate` and `iterval`, the returned version of `fn` will be rate limited such that invokation will be limited to a maximum of `rate` calls per any rolling `interval` period. 
+
+- **fn** - (`Function`) - an `async` function to lock / release.
+- **rate** - (`Number`) - the number of concurrent invocations allowed - defaults to `1`.
+- **interval** - (`Number`) - the interval for the `rate` limit - defaults to `1000`.
+- **limited** - (`Function`) - the rate limited function.
 
 ### bechmark(*fn*, *[precision = 'ms']*, *[...args]*) => *res*
 
 The returned value (`res`) is a `Promise` that resolves with a tuple in the form (`time`, `value`) where `value` is the value resolved by calling `fn`, and `time` is the measured execuition time of `fn` with a precision of `precision`. Where `fn` rejects, `benchmark` itself with reject with the same value ツ.
- 
+
 - **fn** - (`Function`) - the async function to be invoked.
 - **precision** - (`String`) - a constant (`s|ms|ns`) representing the precision of the timing.
 - **args** - (`...Mixed`) - extras arguments to pass to the `fn` invokcation.
