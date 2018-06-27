@@ -45,155 +45,58 @@ test('createRetrierFn - wraps a function for retries', async function (t) {
   t.true(failure === 2)
 })
 
-test('createRetrierFn - wrapped functions supports variable arguments', async function (t) {
+test('createRetrierFn - supports curves', async function (t) {
   const sleep = x => new Promise(r => setTimeout(r, x))
-  const received = []
-
-  const createFailer = function (i) {
-    return async function (a, b, c) {
-      received.push([a, b, c])
-      await sleep(0) // Forces async.
-      if (i) {
-        i--
-        throw new Error(i)
-      }
-      return true
-    }
-  }
-
-  const succeeder = createRetrierFn(createFailer(1), 2)
-  await succeeder(1, 2, 3)
-  t.true(JSON.stringify(received) === JSON.stringify([
-    [1, 2, 3],
-    [1, 2, 3],
-  ]))
-})
-
-test('createRetrierFn - allow many types to be passed', async function (t) {
-  const createPusher = function (iterations, cache) {
-    let i = iterations
-    return async function (value) {
-      cache.push(value)
-      i--
-      if (i !== 0) throw new Error()
-      return value
-    }
-  }
 
   const cache = []
-  cache.length = 0
-  let fx = createPusher(2, cache)
+  const createFn = function () {
+    let failed = false
 
-  // No extra params.
-  let fn = createRetrierFn(fx)
-  let value = await fn('x')
-  t.true(value === 'x')
+    const fn = async function (value) {
+      await sleep(100)
+      cache.push(value)
+
+      if (!failed) {
+        failed = true
+        throw new Error('')
+      }
+
+      return value
+    }
+
+    return fn
+  }
+
+  let f = createFn()
+  let fn = createRetrierFn(f, 2)
+
+  t.true(await fn('x') === 'x')
   t.true(cache.length === 2)
 
   cache.length = 0
-  fx = createPusher(6, cache)
+  f = createFn()
+  fn = createRetrierFn(f, x => x, 2)
 
-  // Passing a `Number`.
-  fn = createRetrierFn(fx, 6)
-  value = await fn('x')
-  t.true(value === 'x')
-  t.true(cache.length === 6)
-
-  cache.length = 0
-  fx = createPusher(6, cache)
-
-  // Passing an `Array`.
-  fn = createRetrierFn(fx, [1, 2, 3, 4, 5, 6])
-  value = await fn('x')
-  t.true(value === 'x')
-  t.true(cache.length === 6)
-
-  cache.length = 0
-  fx = createPusher(6, cache)
-
-  // Passing a generator function, and limit.
-  fn = createRetrierFn(fx, function* (limit) {
-    while (limit) yield 0
-  }, 6)
-
-  value = await fn('x')
-  t.true(value === 'x')
-  t.true(cache.length === 6)
-
-  cache.length = 0
-  fx = createPusher(6, cache)
-
-  // Passing a regular function, that returns a function (thunk).
-  fn = createRetrierFn(fx, function (limit) {
-    // NOTE: Internal state management.
-    let attempt = 0
-
-    return function () {
-      if (attempt < limit) {
-        attempt++
-        return attempt - 1
-      }
-
-      return -1
-    }
-  }, 6)
-
-  value = await fn('x')
-  t.true(value === 'x')
-  t.true(cache.length === 6)
-
-  cache.length = 0
-  fx = createPusher(6, cache)
-
-  // Same as above, but with a large interval.
-  fn = createRetrierFn(fx, function (limit) {
-    // NOTE: Internal state management.
-    let attempt = 0
-
-    return function () {
-      if (attempt < limit) {
-        attempt++
-        return 200
-      }
-
-      return -1
-    }
-  }, 6)
-
-  value = await fn('x')
-  t.true(value === 'x')
-  t.true(cache.length === 6)
-
-  cache.length = 0
-  fx = createPusher(6, cache)
-
-  // Passing a regular function, that returns an array.
-  cache.length = 0
-  fx = createPusher(6, cache)
-
-  // Same as above, but with a large interval.
-  fn = createRetrierFn(fx, function (limit) {
-    return function () {
-      return new Array(limit).fill(0)
-    }
-  }, 6)
-
-  value = await fn('x')
-  t.true(value === 'x')
-  t.true(cache.length === 6)
-
-  cache.length = 0
-  fx = createPusher(6, cache)
+  t.true(await fn('x') === 'x')
+  t.true(cache.length === 2)
 })
 
 test('createRetrierFn - and inbuilt curves', async function (t) {
-  let line = createLinear(2, 0)(6)
-  t.deepEqual([...line], [0, 2, 4, 6, 8, 10])
+  const range = function* (len) {
+    let count = 0
+    while (count < len) {
+      yield count
+      count++
+    }
+  }
 
-  line = createExponential(2, 1000)(6)
-  t.deepEqual([...line], [0, 2000, 4000, 8000, 16000, 32000])
+  let fx = createLinear({ m: 2, b: 0 })
+  t.deepEqual([...range(4)].map(fx), [0, 2, 4, 6])
 
-  line = createExponential(2, 1)(6)
-  t.deepEqual([...line], [0, 2, 4, 8, 16, 32])
+  fx = createExponential({ a: 2, b: 1 }, 1)
+  t.deepEqual([...range(6)].map(fx), [1, 2, 4, 8, 16, 32])
+
+  fx = createExponential({ a: 2, b: 1 }, 1000)
+  t.deepEqual([...range(6)].map(fx), [1000, 2000, 4000, 8000, 16000, 32000])
 })
 
