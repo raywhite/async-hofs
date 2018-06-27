@@ -49,12 +49,21 @@ Rejections do not impact the queue (other given async functions will continue to
 
 - **fn** - (`Function`) - an `async` function to be invoked - where it requires parameters, used `Array.prototype.bind`.
 - **concurrency** - (`Number`) - how many times to spawn the `async` function - defaults to `1`.
+- **args** = (`...Mixed`) - any extra arguments to pass to `fn`.
 - **pool** - (`Promise`)
 
 Wraps an `async` function, and takes an optional concurrency. `fn` will be used to create a "green" thread (think of it like a goroutine or something)... and it will limit the concurrency with which that function is called. Consider the following example:
 
 ```js
-const { sleep, createAsyncFnPool } = require('async-hofs')
+const { createAsyncFnPool } = require('async-hofs')
+
+const sleep = function (value) {
+  return new Promise(function (resolve) {
+    setTimeout(function () {
+        resolve(value)
+    }, 100) // Network delay.
+  })
+}
 
 const inputs = [1, 2, 3, 4, 5, 6]
 const outputs = []
@@ -81,37 +90,28 @@ Wraps an `async` function so that it will be attempted `limit` times before it a
 Where the wrapped function rejects multiple times (exceeding `limit`), the error that it finally rejects with will always be value that the last attempt rejected with.
 
 - **fn** - (`Function`) - an `async` function to be wrapped for retrying.
-- **curve** - (`Function|Array|Number`) - the number of times to retry - defaults to `2`.
+- **curve** - (`Function|Number`) - the number of times to retry - defaults to `2`.
 - **limit** - (`Number`) - the number of times to retry - defaults to `2`.
 - **retrier** - (`Function`) - the wrapped function.
 
-The API for passing the optional `curve` and `limit` is heavily overloaded, allowing for maximum flexibilty - the `curve` can be supplied, allowing the user to dictate the interval between attempts to resolve the wrapped function. It may be of several types;
-- Where the curve is a  `Number`, it is treated as being intended to be the `limit`, and any subsquent arguments are ignored. The wrapped `async` function will be called a maximum of `limit` times, immediately after any preceding rejection (or initially).
-- Where the `curve` is an `Array`, it is treated as a list of milliseconds to delay each attempt for, including the initial invokation, and after a preceding rejection. For instance, if the passed `curve` was `[0, 3000, 6000]`, it would first attempt invokation immediately (after `0` ms), then wait 3 seconds, then 6 seconds, before subsequent invokations.
-- Where the `curve` is a `Function`, it is expected to be a thunk, and is called with (`limit`) as it's only parameter, per invokation of the returned `retrier`. The thunk should return a function, that will be called before each each attempt at resolution, returning a number of milliseconds to delay the next invokation for, and `-1`, `false` or `undefined` to indicated that no more attempts should be made. Consider the following example as being functionally equivalent to the array above (assuming that the passed `limit` is `3`):
+If not present, or a `Number` is passed, the `curve` argument will be treated as the `limit`, and a curve will be generated internally (`y = x => 0`) so that subsequent attempts are always invoked immediately after a failure.
 
-```js
-function curve(limit) {
-  let count = 0
-  return function () {
-    if (count === limit) {
-      return -1
-    }
+For ease of use, this module provides some built in helpers for the generation of common `curve` generators (see `createLinear` and `createExponential` below).
 
-    const ms = count++ * 3000
-    return ms
-  }
-}
-```
+### createLinear(*m*, *b*) => *line*
 
-- The recommended use of the API for precise control over timing is passing a **generator function** as `curve`, Which allows [makes state management easier](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Iterators_and_Generators) than using a thunk, leading to a slightly cleaner API for curves. The generator function will be invoked at each call of `retrier`, and should produce an iterator that determines the delay between resolution attempts. Consider the following example as being funcitonally equivalent to the array or thunk in the above examples (assuming that the passed `limit` is `3`):
+Intended for use with `createRetierFn`, to create a function to be used as a linear `curve` generator, or simply a `line`.
 
-```js
-function* curve(limit) {
-  let count = 0
-  while (count < limit) yield count++ * 3000
-}
-```
+- { **m**, **b**} - the constants `m` and `b` or the gradient and `y` intercept in the, respectively, in the equation `y = m * x + b`.
+- **line** - a function that takes an `x` value and returns a `y` value.
+
+### createExponential({ a = 2, b = 1 }, m = 1) => *curve*
+
+Intended for use with `createRetrierFn`, to create a function to be used as an exponential `curve` generator.
+
+- { **a**, **b** } - the constants `a` and `b` in the equation `y = ((a * b) ** x) * m`
+- **m** - the multiplier in the equation `y = ((a * b) ** x) * m` - to allow scaling between milliseconds and seconds.
+- **curve** - a function that takes an `x` value and returns a `y` value.
 
 ### mutex(*[concurrency = 1]*) => *lock*
 
@@ -147,42 +147,6 @@ Consider the following example, where the second `async` function cannot proceed
   ]).then(function () {
     console.log(values) // => [1, 2]
   })
-```
-
-For ease of use, this module provides some built in helpers for the generation of common `curve` generators (see `createLinear` and `createExponential` below).
-
-### createLinear(*m*, *b*) => *line*
-
-Intended for use with `createRetierFn`, to create a generator function to be used as a linear `curve` generator, or simply a `line`.
-
-- **m** - the gradient of the line in `y = m * x + b`.
-- **b** - the `x` intercept of the `y` axis in `y = m * x + b`.
-- **line** - a generator that takes a limit and produces a line space for each `x` increment along that line, where `x` is the attempt inside a `retrier` resolution attempts. 
-
-Consider the example below, which could be used to produce a `retrier` function that implements linear backoff at `2` second intervals.
-
-```js
-const line = createLinear(2000, 0)
-const linespace = [...line(4)]
-// => [0, 2000, 4000, 6000]
-```
-
-### createExponential(*c*, *m*) => *curve*
-
-Intended for use with `createRetierFn`, to create a generator function to be used as an exponential `curve` generator.
-
-Intended for use with `createRetierFn`, to create a generator function to be used as a linear `curve` generator, or simply a `line`.
-
-- **c** - the constant in the equation `y = (c ** x) * m`
-- **b** - the multiplier in the equation `y = (c ** x) * m`.
-- **curve** - a generator that takes a `limit` and produces a line space for each `x` increment along that `curve` where `x` is the attempt inside a `retrier` resolution attempts. 
-
-Consider the example below, which could be used to produce a `retrier` function that implements linear backoff at `2` second intervals.
-
-```js
-const curve = createExponential(2, 1000)
-const linespace = [...curve(4)]
-// => [0, 2000, 4000, 8000]
 ```
 
 ### clock(*fn*, *[concurrency = 1]*) => *clocked*
