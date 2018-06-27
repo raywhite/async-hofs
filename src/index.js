@@ -94,7 +94,7 @@ const createSequencer = function (method) {
               return _v.then(recurse).catch(reject)
             }
           } catch (serr) {
-            return reject(serr) // NOTE: ßSome sync error.
+            return reject(serr) // NOTE: Some sync error.
           }
 
           return _v
