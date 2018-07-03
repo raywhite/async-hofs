@@ -236,7 +236,7 @@ module.exports.buffer = (function () {
   const buffer = function (readable, limit = (1000 * 1024)) {
     if (map.has(readable)) return map.get(readable)
 
-    const promise = new Promise(function (resolve, reject) { // eslint-disable-line consistent-return
+    const promise = new Promise(function (resolve, reject) {
       const chunks = []
       let len = 0
 

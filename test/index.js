@@ -192,12 +192,10 @@ test('buffer - buffers a writable stream', async function (t) {
   readable = createReadStream(LONG_STRING)
 
   let message
-  let type
   try {
     b = await buffer(readable, BYTE_LENGTH - 4)
   } catch (err) {
     message = err.message
-    type = err.type
   }
 
   t.true(message === 'Byte limit exceeded.')
