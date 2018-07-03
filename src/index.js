@@ -62,6 +62,24 @@ module.exports.memoize = function (fn) {
   return m
 }
 
+const noop = value => value.toString()
+
+module.exports._memoize = function (fn, s = noop, limit = -1, ms = -1) {
+  const cache = {}
+
+  const get = function (key) {
+
+  }
+
+  const set = function (key, value) {
+
+  }
+
+  const m = function (...args) {
+    const key = s(...args)
+  }
+}
+
 /**
  * @pararm {Function}
  * @returns {Function}
