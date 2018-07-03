@@ -184,8 +184,8 @@ test('buffer - buffers a writable stream', async function (t) {
 
   let readable = createReadStream(CHAR_STRING)
   let b = await buffer(readable)
-  const str = String(b)
 
+  const str = String(b)
   t.true(str === CHAR_STRING)
 
   // We also need to assert that byte lengths work.
@@ -200,21 +200,11 @@ test('buffer - buffers a writable stream', async function (t) {
     type = err.type
   }
 
-  t.true(message === 'byte limit exceeded')
-  t.true(message === buffer.LIMIT_EXCEEDED)
+  t.true(message === 'Byte limit exceeded.')
   t.true(message === buffer.LIMIT_EXCEEDED)
 
-  // And finally that two consumers are not allowed.
-  try {
-    await buffer(readable)
-  } catch (err) {
-    message = err.message
-    type = err.type
-  }
-
-  t.true(message === 'stream already consumed')
-  t.true(message === buffer.SECOND_STREAM_CONSUMER)
-  t.true(type === buffer.SECOND_STREAM_CONSUMER)
+  // NOTE: Two consumers should return the same promise.
+  t.true(buffer(readable) === buffer(readable))
 })
 
 test('clock - returns a functions that limits concurrent calls', async function (t) {

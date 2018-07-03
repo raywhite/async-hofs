@@ -212,8 +212,8 @@ module.exports.createAsyncFnPool = function (fn, concurrency = 1, ...args) {
 
 // TODO: This will consume the stream... so has to error.
 module.exports.buffer = (function () {
-  const LIMIT_EXCEEDED = 'byte limit exceeded'
-  const SECOND_STREAM_CONSUMER = 'stream already consumed'
+  const LIMIT_EXCEEDED = 'Byte limit exceeded.'
+  const map = new WeakMap()
 
   /**
    * @param {String}
@@ -225,8 +225,6 @@ module.exports.buffer = (function () {
     return err
   }
 
-  const map = new WeakMap()
-
   /**
    * Buffers a readable stream - default to erroring when more than
    * 1MB is consumed.
@@ -236,13 +234,11 @@ module.exports.buffer = (function () {
    * @returns {Promise => Buffer}
    */
   const buffer = function (readable, limit = (1000 * 1024)) {
-    let len = 0
-    const chunks = []
+    if (map.has(readable)) return map.get(readable)
 
-    return new Promise(function (resolve, reject) { // eslint-disable-line consistent-return
-      if (map.has(readable)) return reject(createError(SECOND_STREAM_CONSUMER))
-
-      map.set(readable, true)
+    const promise = new Promise(function (resolve, reject) { // eslint-disable-line consistent-return
+      const chunks = []
+      let len = 0
 
       readable.on('data', function (chunk) {
         len += chunk.length
@@ -258,12 +254,12 @@ module.exports.buffer = (function () {
         return reject(err)
       })
     })
+
+    map.set(readable, promise)
+    return promise
   }
 
-  // NOTE: exported as constants to allow assertion.
   buffer.LIMIT_EXCEEDED = LIMIT_EXCEEDED
-  buffer.SECOND_STREAM_CONSUMER = SECOND_STREAM_CONSUMER
-
   return buffer
 }())
 
