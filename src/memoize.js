@@ -10,6 +10,11 @@ const isPromise = function (value) {
 module.exports.stringify = stringify
 
 module.exports.memoize = function (fn, s = stringify, ms = -1) {
+  if (typeof s === 'number') {
+    ms = s
+    s = stringify
+  }
+
   const cache = new Map()
   const timeouts = new Map()
 
@@ -47,7 +52,7 @@ module.exports.memoize = function (fn, s = stringify, ms = -1) {
         return reject(err)
       }
 
-      promise.then(function (value) {
+      return promise.then(function (value) {
         return resolve(append(key, value))
       }).catch(function (err) {
         if (cache.has(key)) cache.delete(key)
