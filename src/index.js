@@ -62,45 +62,6 @@ module.exports.memoize = function (fn) {
   return m
 }
 
-const stringify = function (...args) {
-  return String(args[0])
-}
-
-// TODO: Add LRU caching as well... with the `limit` param.
-module.exports._memoize = function (fn, s = stringify, ms = -1) {
-  const cache = new Map()
-  const timeouts = new Map()
-
-  const append = function (key, value) {
-    if (timeouts.has(key)) {
-      clearTimeout(timeouts.get(key))
-      timeouts.delete(key)
-    }
-
-    if (ms !== -1) {
-      timeouts.set(key, setTimeout(function () {
-        cache.delete(key)
-        timeouts.delete(key)
-      }, ms))
-    }
-
-    cache.set(key, value)
-    return value
-  }
-
-  const m = async function (...args) {
-    const key = s(...args)
-    if (cache.has(key)) {
-      return cache.get(key)
-    }
-
-    const v = await fn(...args)
-    return append(key, value)
-  }
-
-  return m
-}
-
 /**
  * @pararm {Function}
  * @returns {Function}
