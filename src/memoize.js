@@ -19,15 +19,10 @@ module.exports.memoize = function (fn, s = stringify, ms = -1) {
   const timeouts = new Map()
 
   const append = function (key, value) {
-    if (timeouts.has(key)) {
-      clearTimeout(timeouts.get(key))
-      timeouts.delete(key)
-    }
-
     if (ms !== -1) {
       timeouts.set(key, setTimeout(function () {
-        cache.delete(key)
         timeouts.delete(key)
+        cache.delete(key)
       }, ms))
     }
 
@@ -63,7 +58,13 @@ module.exports.memoize = function (fn, s = stringify, ms = -1) {
   }
 
   Object.defineProperty(m, 'cache', {
-    get() { return cache },
+    get() { return (function (iterator) {
+        return Array.prototype.reduce.call([...iterator], function (p, [k, v]) {
+          p[k] = v
+          return p
+        }, {})
+      }(cache.entries()))
+    },
   })
 
   return m
