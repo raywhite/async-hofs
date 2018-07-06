@@ -1,13 +1,8 @@
+const { isPromise } = require('./utilities')
+
 const stringify = function (...args) {
   return String(args[0])
 }
-
-// TODO: This is duplicated... it needs to be abstracted into some other file.
-const isPromise = function (value) {
-  return value instanceof Promise || typeof value.then === 'function'
-}
-
-module.exports.stringify = stringify
 
 module.exports.memoize = function (fn, s = stringify, ms = -1) {
   if (typeof s === 'number') {
@@ -58,7 +53,8 @@ module.exports.memoize = function (fn, s = stringify, ms = -1) {
   }
 
   Object.defineProperty(m, 'cache', {
-    get() { return (function (iterator) {
+    get() {
+      return (function (iterator) {
         return Array.prototype.reduce.call([...iterator], function (p, [k, v]) {
           p[k] = v
           return p

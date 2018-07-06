@@ -1,30 +1,10 @@
+const { sleep, isPromise } = require('./utilities')
+
+Object.assign(module.exports, require('./memoize'))
 Object.assign(module.exports, require('./retrier'))
 
-/**
- * Determines whether a value is a thenable, or a standard promise.
- *
- * @param {Mixed}
- * @returns {Boolean}
- */
-const isPromise = function (value) {
-  return value instanceof Promise || typeof value.then === 'function'
-}
+Object.assign(module.exports, { sleep })
 
-/**
- * Returns a promise that resolves after `ms` milliseconds.
- *
- * @param {Number} ms
- * @returns {Void}
- * @private
- */
-const sleep = function (ms = 1000) {
-  return new Promise(function (resolve) {
-    return setTimeout(resolve, ms)
-  })
-}
-
-// NOTE: This is exported for tests only.
-module.exports.sleep = sleep
 
 /**
  * This one is in no way an async util... but I'm using it heaps

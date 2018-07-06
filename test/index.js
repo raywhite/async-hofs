@@ -2,17 +2,33 @@ const test = require('ava')
 const hofs = require('../src/index.js')
 const { Readable } = require('stream')
 
-test('memoize - it\'s here for my own sake', function (t) {
-  const { memoize } = hofs
-  const fn = memoize(x => x + 1)
+test('hofs - correctly exports all functions', function (t) {
+  const fns = Object.keys(hofs).sort()
+  const expected = [
+    'benchmark',
+    'buffer',
+    'clock',
+    'compose',
+    'createAsyncFnPool',
+    'createAsyncFnQueue',
+    'createCLock',
+    'createCLockedFn',
+    'createConcurrencyLock',
+    'createConcurrencyLockedFn',
+    'createExponential',
+    'createLinear',
+    'createRateLimitedFn',
+    'createRetrierFn',
+    'memoize',
+    'mutex',
+    'sequence',
+    'sleep',
+    'zero',
+  ]
 
-  // TODO: Just commiting this so tests pass.
-  t.true(fn(1) === 2)
-  t.true(fn(2) === 3)
-  t.true(fn(3) === 4)
+  t.true(JSON.stringify(expected) === JSON.stringify(fns))
 
-  // Check these values are being cached.
-  t.deepEqual({ 1: 2, 2: 3, 3: 4 }, fn.cache)
+  for (const fn of fns) t.true(typeof hofs[fn] === 'function') // eslint-disable-line no-restricted-syntax
 })
 
 test('createAsyncFnQueue - create an async queue', async function (t) {

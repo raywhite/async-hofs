@@ -1,12 +1,6 @@
+/* eslint-disable quote-props */
 const test = require('ava')
 const { memoize } = require('../src/memoize')
-
-const toObject = function (iterator) {
-  return Array.prototype.reduce.call([...iterator], function (p, [k, v]) {
-    p[k] = v
-    return p
-  }, {})
-}
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
