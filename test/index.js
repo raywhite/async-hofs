@@ -31,7 +31,7 @@ test('hofs - correctly exports all functions', function (t) {
   for (const fn of fns) t.true(typeof hofs[fn] === 'function') // eslint-disable-line no-restricted-syntax
 })
 
-test('createAsyncFnQueue - create an async queue', async function (t) {
+test('createAsyncFnQueue - creates an async queue', async function (t) {
   const { sleep, createAsyncFnQueue } = hofs
   const output = []
 

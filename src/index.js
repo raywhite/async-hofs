@@ -5,43 +5,6 @@ Object.assign(module.exports, require('./retrier'))
 
 Object.assign(module.exports, { sleep })
 
-
-/**
- * This one is in no way an async util... but I'm using it heaps
- * and just want somewhere safe to export form ATM.
- *
- * NOTE: This is a fast simple implementation of a function
- * that can memoizes against a single (`string || number`)
- * param.
- *
- * TODO: This should actually be able to able handle memoization of async
- * functions, and might be useful for debouncing network calls - it should
- * cache the promise that is returned, so as to only allow the function to
- * actually make an I/O call every `ms` milliseconds.
- *
- * @param {Function}
- * @returns {Function}
- */
-module.exports.memoize = function (fn) {
-  const cache = {}
-
-  /**
-   * @param {String|Number}
-   * @returns {Mixed}
-   */
-  const m = function (p) {
-    if (cache[p]) return cache[p]
-    cache[p] = fn(p)
-    return cache[p]
-  }
-
-  Object.defineProperty(m, 'cache', {
-    get() { return Object.assign({}, cache) },
-  })
-
-  return m
-}
-
 /**
  * @pararm {Function}
  * @returns {Function}
