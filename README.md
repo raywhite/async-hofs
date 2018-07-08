@@ -36,6 +36,19 @@ While async functions are expected, synchronous functions will also be composed.
 
 - **...fns** (`...Function`)
 
+### memoize(*fn*, *[stringify], *[timeout = -1]*) => *memoized*
+
+- **fn** - (`Function`) - the composed function.
+- **stringify** - (`Function`) - the function use to stringify arguments.
+- **timeout** - (`Number`) - the time to live, for cached results.
+- **memoized** - (`Function`) - the memoized function.
+
+A basic memoizer implementation, except that it will memoize the `resolve`d or `reject`ed values for async functions. The `stringify` argument will be called with the arguments passed to the memoized function, and by default, will simply call `String(value)` on the first argument to produce internal cache keys... which assumes the first argument is an primitive value - the user should be carful to provide a more appropriate `stringify` function where this is not the case.
+
+If a `Number` is passed instead of a function for `stringify`, it will be treated as `timeout`, and any third argument will be ignored.
+
+Where `timeout` is an absolute `Number` (in **milliseconds**), it will determine the time for which the resolution (or rejection) of `memoized` is cached.
+
 ### createAsyncFnQueue(*[concurrency = 1]*) => *enqueue*
 
 - **concurrency** - (`Number`) - how many times to spawn the `async` function - defaults to `1`.
@@ -83,7 +96,7 @@ const fn = async function () {
 fn().catch(console.error.bind(console))
 ```
 
-### createRetrierFn(*fn*, *[curve = 2]*, *[limit = 2]*) => *retrier*
+### retry(*fn*, *[curve = 2]*, *[limit = 2]*) => *retrier*
 
 Wraps an `async` function so that it will be attempted `limit` times before it actually rejects.
 
@@ -97,6 +110,8 @@ Where the wrapped function rejects multiple times (exceeding `limit`), the error
 If not present, or a `Number` is passed, the `curve` argument will be treated as the `limit`, and a curve will be generated internally (`y = x => 0`) so that subsequent attempts are always invoked immediately after a failure.
 
 For ease of use, this module provides some built in helpers for the generation of common `curve` generators (see `createLinear` and `createExponential` below).
+
+**NOTE:** this method is aliased as `createRetrierFn`.
 
 ### createLinear(*m*, *b*) => *line*
 
@@ -161,7 +176,7 @@ Given a function `fn` and an optional `concurrency`, this function will return a
   - **clocked.pending** - a getter for the number of invocations pending resolution.
   - **clocked.queued** - a getter for the number of calls awaiting invocation.
 
-### createRateLimitedFunction(*fn*, *[rate = 1]*, *[interval = 1000]*) => *limited*
+### limit(*fn*, *[rate = 1]*, *[interval = 1000]*) => *limited*
 
 Given a function `fn` and a `rate` and `iterval`, the returned version of `fn` will be rate limited such that invokation will be limited to a maximum of `rate` calls per any rolling `interval` period. 
 
@@ -170,7 +185,9 @@ Given a function `fn` and a `rate` and `iterval`, the returned version of `fn` w
 - **interval** - (`Number`) - the interval for the `rate` limit - defaults to `1000`.
 - **limited** - (`Function`) - the rate limited function.
 
-### bechmark(*fn*, *[precision = 'ms']*, *[...args]*) => *res*
+**NOTE:** this method is aliased as `createRateLimitedFn` - which is just a more verbose name.
+
+### benchmark(*fn*, *[precision = 'ms']*, *[...args]*) => *res*
 
 The returned value (`res`) is a `Promise` that resolves with a tuple in the form (`time`, `value`) where `value` is the value resolved by calling `fn`, and `time` is the measured execuition time of `fn` with a precision of `precision`. Where `fn` rejects, `benchmark` itself with reject with the same value ツ.
 
@@ -183,7 +200,7 @@ The returned value (`res`) is a `Promise` that resolves with a tuple in the form
 
 Given a stdlib `stream.Readable`, this function will continue to read from the stream until the `end` event is emitted by the stream, and then resolve the returned promise. The returned promise will reject if the `limit` is exceeded, and will also reject with any errors emitted by the underlying stream.
 
-**NOTE:** This funciton will actually consume the stream, meaning that the stream shouldn't also be consumed by another function, unless the event handlers are attached prior to calling `buffer`. Importantly, `buffer` itself can't actually consume a stream that is or was being consumed by `buffer` - so subsequent calls to `buffer` using the same stream will error.
+**NOTE:** This function will actually consume the stream, meaning that the stream shouldn't also be consumed by another function, unless the event handlers are attached prior to calling `buffer`. Importantly, `buffer` itself can't actually consume a stream that is or was being consumed by `buffer` - so subsequent calls to `buffer` using the same stream will error.
 
 - **readable** - (`stream.Readable`) - the readable stream to be buffered.
 - **limit** - (`Number`) - the max number of bytes to buffer.
