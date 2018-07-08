@@ -210,10 +210,6 @@ Given a stdlib `stream.Readable`, this function will continue to read from the s
 
 The value of the error `message` and `type` upon rejection of the promise returned by `buffer` where the reason for rejection was exceeding of the `limit` parameter. Should be used for asserting whether or not this was the type of error.
 
-### constant *buffer.SECOND_STREAM_CONSUMER*
-
-The value of the error `message` and `type` upon rejection of the promise returned by `buffer`, where the reason for rejection was `buffer` being called more than once with the same readable. Should be used for asserting whether or not this was the type of error.
-
 ## License
 
 &bull; **MIT** &copy; Ray White, 2017-2018 &bull;
