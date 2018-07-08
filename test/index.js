@@ -19,8 +19,10 @@ test('hofs - correctly exports all functions', function (t) {
     'createLinear',
     'createRateLimitedFn',
     'createRetrierFn',
+    'limit',
     'memoize',
     'mutex',
+    'retry',
     'sequence',
     'sleep',
     'zero',
@@ -29,6 +31,35 @@ test('hofs - correctly exports all functions', function (t) {
   t.true(JSON.stringify(expected) === JSON.stringify(fns))
 
   for (const fn of fns) t.true(typeof hofs[fn] === 'function') // eslint-disable-line no-restricted-syntax
+
+  const aliases = [
+    [
+      'clock',
+      'createCLockedFn',
+      'createConcurrencyLockedFn',
+    ],
+    [
+      'mutex',
+      'createCLock',
+      'createConcurrencyLock',
+    ],
+    [
+      'limit',
+      'createRateLimitedFn',
+    ],
+    [
+      'retry',
+      'createRetrierFn',
+    ],
+  ]
+
+  for (const group of aliases) { // eslint-disable-line no-restricted-syntax
+    const code = group.map(fn => hofs[fn].toString())
+    const source = code.shift()
+    for (const alias of code) { // eslint-disable-line no-restricted-syntax
+      t.true(source === alias)
+    }
+  }
 })
 
 test('createAsyncFnQueue - creates an async queue', async function (t) {

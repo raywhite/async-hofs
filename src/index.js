@@ -6,7 +6,7 @@ Object.assign(module.exports, require('./retrier'))
 Object.assign(module.exports, { sleep })
 
 /**
- * @pararm {Function}
+ * @param {Function}
  * @returns {Function}
  */
 const createSequencer = function (method) {
@@ -25,25 +25,25 @@ const createSequencer = function (method) {
      * @param {Mixed}
      * @returns {Promise => Mixed}
      */
-    return function (v) {
+    return function (value) {
       return new Promise(function (resolve, reject) {
-        const recurse = function (_v) {
+        const recurse = function (res) {
           const fn = method.call(fns)
 
           try {
             if (fn) {
-              _v = fn(_v)
-              if (!isPromise(_v)) _v = Promise.resolve(_v)
-              return _v.then(recurse).catch(reject)
+              res = fn(res)
+              if (!isPromise(res)) res = Promise.resolve(res)
+              return res.then(recurse).catch(reject)
             }
-          } catch (serr) {
-            return reject(serr) // NOTE: Some sync error.
+          } catch (err) {
+            return reject(err)
           }
 
-          return _v
+          return res
         }
 
-        return recurse(v).then(resolve)
+        return recurse(value).then(resolve)
       })
     }
   }
@@ -110,7 +110,7 @@ module.exports.createConcurrencyLock = createConcurrencyLock
 const createAsyncFnQueue = function (concurrency = 1) {
   const lock = createConcurrencyLock(concurrency)
 
-  return function (fn, ...args) {
+  const enqueue = function (fn, ...args) {
     return new Promise(function (resolve, reject) {
       return lock().then(function (release) {
         try {
@@ -134,6 +134,16 @@ const createAsyncFnQueue = function (concurrency = 1) {
       })
     })
   }
+
+  Object.defineProperty(enqueue, 'pending', {
+    get: () => lock.pending,
+  })
+
+  Object.defineProperty(enqueue, 'queued', {
+    get: () => lock.queued,
+  })
+
+  return enqueue
 }
 
 module.exports.createAsyncFnQueue = createAsyncFnQueue
@@ -152,59 +162,6 @@ module.exports.createAsyncFnPool = function (fn, concurrency = 1, ...args) {
   const queue = new Array(concurrency).fill(fn(...args))
   return Promise.all(queue)
 }
-
-// TODO: This will consume the stream... so has to error.
-module.exports.buffer = (function () {
-  const LIMIT_EXCEEDED = 'Byte limit exceeded.'
-  const map = new WeakMap()
-
-  /**
-   * @param {String}
-   * @returns {Error}
-   */
-  const createError = function (str) {
-    const err = new Error(str)
-    err.type = str
-    return err
-  }
-
-  /**
-   * Buffers a readable stream - default to erroring when more than
-   * 1MB is consumed.
-   *
-   * @param {stream.Readable}
-   * @param {Number}
-   * @returns {Promise => Buffer}
-   */
-  const buffer = function (readable, limit = (1000 * 1024)) {
-    if (map.has(readable)) return map.get(readable)
-
-    const promise = new Promise(function (resolve, reject) {
-      const chunks = []
-      let len = 0
-
-      readable.on('data', function (chunk) {
-        len += chunk.length
-        if (len > limit) return reject(createError(LIMIT_EXCEEDED))
-        return chunks.push(chunk)
-      })
-
-      readable.on('end', function () {
-        return resolve(Buffer.concat(chunks, len))
-      })
-
-      readable.on('error', function (err) {
-        return reject(err)
-      })
-    })
-
-    map.set(readable, promise)
-    return promise
-  }
-
-  buffer.LIMIT_EXCEEDED = LIMIT_EXCEEDED
-  return buffer
-}())
 
 /**
  * TODO: This is almost API compatible with createCLockedFunction... but it
@@ -274,6 +231,9 @@ module.exports.clock = createConcurrencyLockedFn
  * TODO: This should likely be capable of taking multiple functions and limited
  * their execution rate (instead of just one), like clock does.
  *
+ * TODO: Interanally, this is a little inconsistent with the other functions
+ * exposed in this file... it should use `pending` and `scheduled`.
+ *
  * @param {Function} fn
  * @param {Number} rate
  * @param {Number} interval
@@ -310,14 +270,25 @@ const createRateLimitedFn = function (fn, rate = 1, interval = 1000) {
    * @param {...Mixed} args
    * @returns {Function}
    */
-  return function (...args) {
+  const limited = function (...args) {
     return new Promise(function (resolve, reject) {
       schedule(resolve, reject, ...args)
     })
   }
+
+  Object.defineProperty(limited, 'pending', {
+    get: () => count,
+  })
+
+  Object.defineProperty(limited, 'queued', {
+    get: () => pending,
+  })
+
+  return limited
 }
 
 module.exports.createRateLimitedFn = createRateLimitedFn
+module.exports.limit = createRateLimitedFn
 
 /**
  * Time the execustion of some async function.
@@ -341,3 +312,55 @@ const benchmark = function (fn, precision = 'ms', ...args) {
 }
 
 module.exports.benchmark = benchmark
+
+module.exports.buffer = (function () {
+  const LIMIT_EXCEEDED = 'Byte limit exceeded.'
+  const map = new WeakMap()
+
+  /**
+   * @param {String}
+   * @returns {Error}
+   */
+  const createError = function (str) {
+    const err = new Error(str)
+    err.type = str
+    return err
+  }
+
+  /**
+   * Buffers a readable stream - default to erroring when more than
+   * 1MB is consumed.
+   *
+   * @param {stream.Readable}
+   * @param {Number}
+   * @returns {Promise => Buffer}
+   */
+  const buffer = function (readable, limit = (1000 * 1024)) {
+    if (map.has(readable)) return map.get(readable)
+
+    const promise = new Promise(function (resolve, reject) {
+      const chunks = []
+      let len = 0
+
+      readable.on('data', function (chunk) {
+        len += chunk.length
+        if (len > limit) return reject(createError(LIMIT_EXCEEDED))
+        return chunks.push(chunk)
+      })
+
+      readable.on('end', function () {
+        return resolve(Buffer.concat(chunks, len))
+      })
+
+      readable.on('error', function (err) {
+        return reject(err)
+      })
+    })
+
+    map.set(readable, promise)
+    return promise
+  }
+
+  buffer.LIMIT_EXCEEDED = LIMIT_EXCEEDED
+  return buffer
+}())
