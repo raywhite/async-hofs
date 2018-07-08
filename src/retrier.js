@@ -1,8 +1,4 @@
-/**
- *
- * @param {Mixed} value
- */
-const isNumber = value => typeof value === 'number'
+const { isNumber } = require('./utilities')
 
 const createLinear = function (constants = {}) {
   const { m = 1, b = 0 } = constants
@@ -36,7 +32,7 @@ module.exports.createExponential = createExponential
  * @param {Number}
  * @returns {Function}
  */
-module.exports.createRetrierFn = function (fn, curve = 2, limit = 2) {
+const createRetrierFn = function (fn, curve = 2, limit = 2) {
   if (isNumber(curve)) {
     limit = curve
     curve = zero
@@ -73,3 +69,6 @@ module.exports.createRetrierFn = function (fn, curve = 2, limit = 2) {
     })
   }
 }
+
+module.exports.retry = createRetrierFn
+module.exports.createRetrierFn = createRetrierFn

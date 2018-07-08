@@ -1,69 +1,13 @@
+const { sleep, isPromise } = require('./utilities')
+
+Object.assign(module.exports, require('./memoize'))
 Object.assign(module.exports, require('./retrier'))
+Object.assign(module.exports, require('./buffer'))
+
+Object.assign(module.exports, { sleep })
 
 /**
- * Determines whether a value is a thenable, or a standard promise.
- *
- * @param {Mixed}
- * @returns {Boolean}
- */
-const isPromise = function (value) {
-  return value instanceof Promise || typeof value.then === 'function'
-}
-
-/**
- * Returns a promise that resolves after `ms` milliseconds.
- *
- * @param {Number} ms
- * @returns {Void}
- * @private
- */
-const sleep = function (ms = 1000) {
-  return new Promise(function (resolve) {
-    return setTimeout(resolve, ms)
-  })
-}
-
-// NOTE: This is exported for tests only.
-module.exports.sleep = sleep
-
-/**
- * This one is in no way an async util... but I'm using it heaps
- * and just want somewhere safe to export form ATM.
- *
- * NOTE: This is a fast simple implementation of a function
- * that can memoizes against a single (`string || number`)
- * param.
- *
- * TODO: This should actually be able to able handle memoization of async
- * functions, and might be useful for debouncing network calls - it should
- * cache the promise that is returned, so as to only allow the function to
- * actually make an I/O call every `ms` milliseconds.
- *
  * @param {Function}
- * @returns {Function}
- */
-module.exports.memoize = function (fn) {
-  const cache = {}
-
-  /**
-   * @param {String|Number}
-   * @returns {Mixed}
-   */
-  const m = function (p) {
-    if (cache[p]) return cache[p]
-    cache[p] = fn(p)
-    return cache[p]
-  }
-
-  Object.defineProperty(m, 'cache', {
-    get() { return Object.assign({}, cache) },
-  })
-
-  return m
-}
-
-/**
- * @pararm {Function}
  * @returns {Function}
  */
 const createSequencer = function (method) {
@@ -82,25 +26,25 @@ const createSequencer = function (method) {
      * @param {Mixed}
      * @returns {Promise => Mixed}
      */
-    return function (v) {
+    return function (value) {
       return new Promise(function (resolve, reject) {
-        const recurse = function (_v) {
+        const recurse = function (res) {
           const fn = method.call(fns)
 
           try {
             if (fn) {
-              _v = fn(_v)
-              if (!isPromise(_v)) _v = Promise.resolve(_v)
-              return _v.then(recurse).catch(reject)
+              res = fn(res)
+              if (!isPromise(res)) res = Promise.resolve(res)
+              return res.then(recurse).catch(reject)
             }
-          } catch (serr) {
-            return reject(serr) // NOTE: Some sync error.
+          } catch (err) {
+            return reject(err)
           }
 
-          return _v
+          return res
         }
 
-        return recurse(v).then(resolve)
+        return recurse(value).then(resolve)
       })
     }
   }
@@ -167,7 +111,7 @@ module.exports.createConcurrencyLock = createConcurrencyLock
 const createAsyncFnQueue = function (concurrency = 1) {
   const lock = createConcurrencyLock(concurrency)
 
-  return function (fn, ...args) {
+  const enqueue = function (fn, ...args) {
     return new Promise(function (resolve, reject) {
       return lock().then(function (release) {
         try {
@@ -191,6 +135,16 @@ const createAsyncFnQueue = function (concurrency = 1) {
       })
     })
   }
+
+  Object.defineProperty(enqueue, 'pending', {
+    get: () => lock.pending,
+  })
+
+  Object.defineProperty(enqueue, 'queued', {
+    get: () => lock.queued,
+  })
+
+  return enqueue
 }
 
 module.exports.createAsyncFnQueue = createAsyncFnQueue
@@ -209,63 +163,6 @@ module.exports.createAsyncFnPool = function (fn, concurrency = 1, ...args) {
   const queue = new Array(concurrency).fill(fn(...args))
   return Promise.all(queue)
 }
-
-// TODO: This will consume the stream... so has to error.
-module.exports.buffer = (function () {
-  const LIMIT_EXCEEDED = 'byte limit exceeded'
-  const SECOND_STREAM_CONSUMER = 'stream already consumed'
-
-  /**
-   * @param {String}
-   * @returns {Error}
-   */
-  const createError = function (str) {
-    const err = new Error(str)
-    err.type = str
-    return err
-  }
-
-  const map = new WeakMap()
-
-  /**
-   * Buffers a readable stream - default to erroring when more than
-   * 1MB is consumed.
-   *
-   * @param {stream.Readable}
-   * @param {Number}
-   * @returns {Promise => Buffer}
-   */
-  const buffer = function (readable, limit = (1000 * 1024)) {
-    let len = 0
-    const chunks = []
-
-    return new Promise(function (resolve, reject) { // eslint-disable-line consistent-return
-      if (map.has(readable)) return reject(createError(SECOND_STREAM_CONSUMER))
-
-      map.set(readable, true)
-
-      readable.on('data', function (chunk) {
-        len += chunk.length
-        if (len > limit) return reject(createError(LIMIT_EXCEEDED))
-        return chunks.push(chunk)
-      })
-
-      readable.on('end', function () {
-        return resolve(Buffer.concat(chunks, len))
-      })
-
-      readable.on('error', function (err) {
-        return reject(err)
-      })
-    })
-  }
-
-  // NOTE: exported as constants to allow assertion.
-  buffer.LIMIT_EXCEEDED = LIMIT_EXCEEDED
-  buffer.SECOND_STREAM_CONSUMER = SECOND_STREAM_CONSUMER
-
-  return buffer
-}())
 
 /**
  * TODO: This is almost API compatible with createCLockedFunction... but it
@@ -335,6 +232,9 @@ module.exports.clock = createConcurrencyLockedFn
  * TODO: This should likely be capable of taking multiple functions and limited
  * their execution rate (instead of just one), like clock does.
  *
+ * TODO: Interanally, this is a little inconsistent with the other functions
+ * exposed in this file... it should use `pending` and `scheduled`.
+ *
  * @param {Function} fn
  * @param {Number} rate
  * @param {Number} interval
@@ -371,14 +271,25 @@ const createRateLimitedFn = function (fn, rate = 1, interval = 1000) {
    * @param {...Mixed} args
    * @returns {Function}
    */
-  return function (...args) {
+  const limited = function (...args) {
     return new Promise(function (resolve, reject) {
       schedule(resolve, reject, ...args)
     })
   }
+
+  Object.defineProperty(limited, 'pending', {
+    get: () => count,
+  })
+
+  Object.defineProperty(limited, 'queued', {
+    get: () => pending,
+  })
+
+  return limited
 }
 
 module.exports.createRateLimitedFn = createRateLimitedFn
+module.exports.limit = createRateLimitedFn
 
 /**
  * Time the execustion of some async function.

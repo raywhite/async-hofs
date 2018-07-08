@@ -1,21 +1,67 @@
 const test = require('ava')
 const hofs = require('../src/index.js')
-const { Readable } = require('stream')
 
-test('memoize - it\'s here for my own sake', function (t) {
-  const { memoize } = hofs
-  const fn = memoize(x => x + 1)
+test('hofs - correctly exports all functions', function (t) {
+  const fns = Object.keys(hofs).sort()
+  const expected = [
+    'benchmark',
+    'buffer',
+    'clock',
+    'compose',
+    'createAsyncFnPool',
+    'createAsyncFnQueue',
+    'createCLock',
+    'createCLockedFn',
+    'createConcurrencyLock',
+    'createConcurrencyLockedFn',
+    'createExponential',
+    'createLinear',
+    'createRateLimitedFn',
+    'createRetrierFn',
+    'limit',
+    'memoize',
+    'mutex',
+    'retry',
+    'sequence',
+    'sleep',
+    'zero',
+  ]
 
-  // TODO: Just commiting this so tests pass.
-  t.true(fn(1) === 2)
-  t.true(fn(2) === 3)
-  t.true(fn(3) === 4)
+  t.true(JSON.stringify(expected) === JSON.stringify(fns))
 
-  // Check these values are being cached.
-  t.deepEqual({ 1: 2, 2: 3, 3: 4 }, fn.cache)
+  for (const fn of fns) t.true(typeof hofs[fn] === 'function') // eslint-disable-line no-restricted-syntax
+
+  const aliases = [
+    [
+      'clock',
+      'createCLockedFn',
+      'createConcurrencyLockedFn',
+    ],
+    [
+      'mutex',
+      'createCLock',
+      'createConcurrencyLock',
+    ],
+    [
+      'limit',
+      'createRateLimitedFn',
+    ],
+    [
+      'retry',
+      'createRetrierFn',
+    ],
+  ]
+
+  for (const group of aliases) { // eslint-disable-line no-restricted-syntax
+    const code = group.map(fn => hofs[fn].toString())
+    const source = code.shift()
+    for (const alias of code) { // eslint-disable-line no-restricted-syntax
+      t.true(source === alias)
+    }
+  }
 })
 
-test('createAsyncFnQueue - create an async queue', async function (t) {
+test('createAsyncFnQueue - creates an async queue', async function (t) {
   const { sleep, createAsyncFnQueue } = hofs
   const output = []
 
@@ -161,60 +207,6 @@ test('compose - right to left composition', async function (t) {
   const v = await fn('')
 
   t.true(v === '3210')
-})
-
-test('buffer - buffers a writable stream', async function (t) {
-  const { buffer } = hofs
-
-  const CHAR_STRING = 'some string of characters... :)'
-  const LONG_STRING = 'this string of characters is too long...'
-  const BYTE_LENGTH = Buffer.byteLength(LONG_STRING)
-
-  const createReadStream = function (str) {
-    return new Readable({
-      read() {
-        const chunk = Buffer.from(str.slice(0, 4))
-        str = str.slice(4)
-
-        // End when the string has been consumed.
-        return this.push(chunk.length ? chunk : null)
-      },
-    })
-  }
-
-  let readable = createReadStream(CHAR_STRING)
-  let b = await buffer(readable)
-  const str = String(b)
-
-  t.true(str === CHAR_STRING)
-
-  // We also need to assert that byte lengths work.
-  readable = createReadStream(LONG_STRING)
-
-  let message
-  let type
-  try {
-    b = await buffer(readable, BYTE_LENGTH - 4)
-  } catch (err) {
-    message = err.message
-    type = err.type
-  }
-
-  t.true(message === 'byte limit exceeded')
-  t.true(message === buffer.LIMIT_EXCEEDED)
-  t.true(message === buffer.LIMIT_EXCEEDED)
-
-  // And finally that two consumers are not allowed.
-  try {
-    await buffer(readable)
-  } catch (err) {
-    message = err.message
-    type = err.type
-  }
-
-  t.true(message === 'stream already consumed')
-  t.true(message === buffer.SECOND_STREAM_CONSUMER)
-  t.true(type === buffer.SECOND_STREAM_CONSUMER)
 })
 
 test('clock - returns a functions that limits concurrent calls', async function (t) {
