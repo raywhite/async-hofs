@@ -4,15 +4,40 @@ const { memoize } = require('../src/memoize')
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
-test('memoize - basic, seemingly sink functions', async function (t) {
+test.cb('memoize - basic functionality tests', function (t) {
   const fn = memoize(x => x + 1)
 
   t.true(typeof fn.cache === 'object')
 
-  t.true(await fn(1) === 2)
-  t.true(await fn(2) === 3)
-  t.true(await fn(3) === 4)
-  t.deepEqual(fn.cache, { '1': 2, '2': 3, '3': 4 })
+  // NOTE: Always returns a promise, even when pass a sync function.
+  t.true(fn(1) instanceof Promise)
+
+  const a = memoize(() => new Promise(r => setTimeout(r, 100)))
+  t.true(a() instanceof Promise)
+
+  const p = Promise.all([fn(1), fn(2), fn(3)]).then(function (res) {
+    t.deepEqual(res, [2, 3, 4])
+    t.deepEqual(fn.cache, { '1': 2, '2': 3, '3': 4 })
+  })
+
+  // NOTE: Asserts failures happen correctly, don't append to cache.
+  const q = new Promise(function (resolve) {
+    const m = memoize(function () {
+      return new Promise(function (_, reject) {
+        setTimeout(reject, 0)
+      })
+    })
+
+    m().catch(function () {
+      t.true(true)
+
+      // NOTE: Nothing was added to the cache.
+      t.deepEqual(m.cache, {})
+      resolve()
+    })
+  })
+
+  Promise.all([p, q]).then(() => t.end()).catch(() => t.end())
 })
 
 test('memoize - allows for a time to live', async function (t) {

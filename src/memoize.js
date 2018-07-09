@@ -27,9 +27,7 @@ module.exports.memoize = function (fn, s = stringify, ms = -1) {
 
   const m = function (...args) {
     const key = s(...args)
-    if (cache.has(key)) {
-      return cache.get(key)
-    }
+    if (cache.has(key)) return Promise.resolve(cache.get(key))
 
     return new Promise(function (resolve, reject) {
       let promise
