@@ -113,11 +113,11 @@ For ease of use, this module provides some built in helpers for the generation o
 
 **NOTE:** this method is aliased as `createRetrierFn`.
 
-### createLinear(*m*, *b*) => *line*
+### createLinear({ *m*, *b* }) => *line*
 
 Intended for use with `createRetierFn`, to create a function to be used as a linear `curve` generator, or simply a `line`.
 
-- { **m**, **b**} - the constants `m` and `b` or the gradient and `y` intercept in the, respectively, in the equation `y = m * x + b`.
+- { **m**, **b** } - the constants `m` and `b` or the gradient and `y` intercept in the, respectively, in the equation `y = m * x + b`.
 - **line** - a function that takes an `x` value and returns a `y` value.
 
 ### createExponential({ a = 2, b = 1 }, m = 1) => *curve*
