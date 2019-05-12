@@ -176,7 +176,22 @@ test('sequence - composes async functions left to right', async function (t) {
 
   t.true(v === 16)
 
-  // Ugh... just noticed the above doesn't test directionality (reset)
+  /**
+   * The above doesn't test directionality - but I did want to
+   * add a small test to check that the same input does get
+   * the same output (to make sure the input functions) are not
+   * being consumed by `pop` or `shift`.
+   */
+
+  const vs = await Promise.all([
+    fn(0),
+    fn(1),
+    fn(2),
+    fn(3),
+  ])
+
+  t.deepEqual([16, 17, 18, 19], vs)
+
   fns.length = 0
 
   const createPusher = function (x) {

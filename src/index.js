@@ -28,8 +28,9 @@ const createSequencer = function (method) {
      */
     return function (value) {
       return new Promise(function (resolve, reject) {
+        const args = [...fns] // NOTE: A clone is required each time.
         const recurse = function (res) {
-          const fn = method.call(fns)
+          const fn = method.call(args)
 
           try {
             if (fn) {
