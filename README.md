@@ -8,7 +8,12 @@
 
 This repo contains utilities (mostly [higher order functions](https://en.wikipedia.org/wiki/Higher-order_function)) intending to help with common [asynchronous tasks](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function) where `async` / `await` or [promises](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) are used.
 
-The entire module expects a standard `Promise` implementation to be available (**Node v4+**), and also doesn't itself use `async` / `await` in any of it's source - so as to not require transpilation when used as a dependancy (it's intended to be used as a dep for [google cloud functions](https://cloud.google.com/functions/docs/writing/)), which at the time of writing this, is pinned to **Node v6.11.5 LTS**.
+
+## Compatibility
+
+At present, and for the 0.x versions, the entire module expects a standard `Promise` implementation to be available (**Node v4+**), and also doesn't itself use `async` / `await` in any of it's source - so as to not require transpilation when used as a dependancy (it's intended to be used as a dep for [google cloud functions](https://cloud.google.com/functions/docs/writing/)), which at the time of writing this, is pinned to **Node v6.11.5 LTS**.
+
+However from 1.x onward `async` / `await` is permitted (although not yet necessarily used) and `Node v8.x` compatibility is targeted and `Node v6.x` compatility may break without major version changes.
 
 ## Setup
 
