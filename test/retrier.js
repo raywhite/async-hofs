@@ -5,7 +5,7 @@ const {
   createRetrierFn,
 } = require('../src/retrier')
 
-test('createRetrierFn - wraps a function for retries', async function (t) {
+test('createRetrierFn - retries async errors', async function (t) {
   const sleep = x => new Promise(r => setTimeout(r, x))
 
   /**
@@ -43,6 +43,44 @@ test('createRetrierFn - wraps a function for retries', async function (t) {
   }
 
   t.true(failure === 2)
+})
+
+test('createRetrierFn - retries sync errors', async function (t) {
+  const responses = [
+    new Error('fail'),
+    true,
+  ]
+
+  function failOnce() {
+    const response = responses.shift()
+    if (response instanceof Error) throw response
+    return response
+  }
+
+  const fn = createRetrierFn(failOnce, 2)
+  t.true(await fn())
+})
+
+test('createRetrierFn - allows opt out of retries', async function (t) {
+  const shouldRetry = () => false
+  const responses = [
+    new Error('fail'),
+    true,
+  ]
+
+  function failOnce() {
+    const response = responses.shift()
+    if (response instanceof Error) throw response
+    return response
+  }
+
+  const fn = createRetrierFn(failOnce, 2, undefined, shouldRetry)
+  try {
+    await fn()
+    t.fail()
+  } catch (error) {
+    t.pass()
+  }
 })
 
 test('createRetrierFn - supports curves', async function (t) {
