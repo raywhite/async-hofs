@@ -30,9 +30,10 @@ module.exports.createExponential = createExponential
  * @param {Function}
  * @param {Function|Number}
  * @param {Number}
+ * @param {Function}
  * @returns {Function}
  */
-const createRetrierFn = function (fn, curve = 2, limit = 2) {
+const createRetrierFn = function (fn, curve = 2, limit = 2, shouldRetry = undefined) {
   if (isNumber(curve)) {
     limit = curve
     curve = zero
@@ -42,30 +43,20 @@ const createRetrierFn = function (fn, curve = 2, limit = 2) {
     const args = Array.prototype.slice.call(arguments)
 
     return new Promise(function (resolve, reject) {
-      const recurse = function (err, attempt) {
+      (function recurse(err, attempt) {
         if (attempt >= limit) return reject(err)
-        if (attempt === 0) {
-          try {
-            return fn.apply(null, args).then(resolve).catch(function (asyncErr) {
-              return recurse(asyncErr, attempt + 1)
-            })
-          } catch (syncErr) {
-            return reject(syncErr)
-          }
+
+        function retry(error) {
+          if (shouldRetry && !shouldRetry(error)) return reject(error)
+          return recurse(error, attempt + 1)
         }
 
-        return setTimeout(function () {
-          try {
-            return fn.apply(null, args).then(resolve).catch(function (asyncErr) {
-              return recurse(asyncErr, attempt + 1)
-            })
-          } catch (syncErr) {
-            return reject(syncErr)
-          }
-        }, curve(attempt))
-      }
-
-      return recurse(null, 0)
+        try {
+          return Promise.resolve(fn.apply(null, args)).then(resolve).catch(retry)
+        } catch (error) {
+          return retry(error)
+        }
+      }(null, 0))
     })
   }
 }
