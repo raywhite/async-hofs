@@ -83,6 +83,30 @@ test('createRetrierFn - allows opt out of retries', async function (t) {
   }
 })
 
+test('createRetrierFn - allows indefinite retries', async function (t) {
+  const responses = [
+    new Error('fail'),
+    new Error('fail'),
+    new Error('fail'),
+    new Error('fail'),
+    true,
+  ]
+
+  function failMany() {
+    const response = responses.shift()
+    if (response instanceof Error) throw response
+    return response
+  }
+
+  const fn = createRetrierFn(failMany, 0, 0)
+  try {
+    await fn()
+    t.pass()
+  } catch (error) {
+    t.fail()
+  }
+})
+
 test('createRetrierFn - supports curves', async function (t) {
   const sleep = x => new Promise(r => setTimeout(r, x))
 
