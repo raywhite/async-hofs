@@ -1,6 +1,6 @@
 {
   "name": "@raywhite/async-hofs",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Async / Promise related higher order functions and utils",
   "main": "./src/index.js",
   "files": [
