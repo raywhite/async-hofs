@@ -49,10 +49,11 @@ const createRetrierFn = function (fn, curve) {
 
     const recurse = function (resolve, reject) {
       return fn(...args).then(resolve).catch(function (err) {
-        let timeout = curve(err, ++attempt)
-        if (timeout < 0) return reject(err)
+        let timeout
+
         try {
-          if (err <= 0) return recurse(resolve, reject)
+          timeout = curve(err, ++attempt)
+          if (timeout <= 0) return recurse(resolve, reject)
           return setTimeout(recurse, timeout, resolve, reject)
         } catch (_err) {
           return reject(_err)
@@ -65,3 +66,4 @@ const createRetrierFn = function (fn, curve) {
 }
 
 module.exports.createRetrierFn = createRetrierFn
+module.exports.retry = createRetrierFn
