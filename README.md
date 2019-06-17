@@ -101,7 +101,7 @@ const fn = async function () {
 fn().catch(console.error.bind(console))
 ```
 
-### retry(*fn*, *[curve = 2]*, *[limit = 2]*) => *retrier*
+### retry(*fn*, *[curve = 2]*, *[limit = 2]*, [shouldRetry = undefined]) => *retrier*
 
 Wraps an `async` function so that it will be attempted `limit` times before it actually rejects.
 
@@ -109,7 +109,8 @@ Where the wrapped function rejects multiple times (exceeding `limit`), the error
 
 - **fn** - (`Function`) - an `async` function to be wrapped for retrying.
 - **curve** - (`Function|Number`) - the number of times to retry - defaults to `2`.
-- **limit** - (`Number`) - the number of times to retry - defaults to `2`.
+- **limit** - (`Number`) - the number of times to retry - defaults to `2`; if falsy, will retry indefinitely.
+- **shouldRetry** -  `function (Error) => boolean` - an optional function to decide whether to retry; can be used to abort earlier than `limit`.
 - **retrier** - (`Function`) - the wrapped function.
 
 If not present, or a `Number` is passed, the `curve` argument will be treated as the `limit`, and a curve will be generated internally (`y = x => 0`) so that subsequent attempts are always invoked immediately after a failure.

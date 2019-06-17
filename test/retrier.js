@@ -5,7 +5,7 @@ const {
   createRetrierFn,
 } = require('../src/retrier')
 
-test('createRetrierFn - retries async errors', async function (t) {
+test('createRetrierFn - retries async errors with delay', async function (t) {
   const sleep = x => new Promise(r => setTimeout(r, x))
 
   /**
@@ -27,10 +27,13 @@ test('createRetrierFn - retries async errors', async function (t) {
   }
 
   // Will retry three times.
-  const succeeder = createRetrierFn(createFailer(2), 3)
+  const succeeder = createRetrierFn(createFailer(2), () => 15, 3)
   t.true(typeof succeeder === 'function')
+
+  const start = new Date().getTime()
   const success = await succeeder()
   t.true(success)
+  t.true(new Date().getTime() - start >= 30)
 
   const failer = createRetrierFn(createFailer(4), 2)
   t.true(typeof succeeder === 'function')
@@ -80,6 +83,30 @@ test('createRetrierFn - allows opt out of retries', async function (t) {
     t.fail()
   } catch (error) {
     t.pass()
+  }
+})
+
+test('createRetrierFn - allows indefinite retries', async function (t) {
+  const responses = [
+    new Error('fail'),
+    new Error('fail'),
+    new Error('fail'),
+    new Error('fail'),
+    true,
+  ]
+
+  function failMany() {
+    const response = responses.shift()
+    if (response instanceof Error) throw response
+    return response
+  }
+
+  const fn = createRetrierFn(failMany, 0, 0)
+  try {
+    await fn()
+    t.pass()
+  } catch (error) {
+    t.fail()
   }
 })
 

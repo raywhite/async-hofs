@@ -43,19 +43,29 @@ const createRetrierFn = function (fn, curve = 2, limit = 2, shouldRetry = undefi
     const args = Array.prototype.slice.call(arguments)
 
     return new Promise(function (resolve, reject) {
-      (function recurse(err, attempt) {
-        if (attempt >= limit) return reject(err)
-
+      (function recurse(attempt) {
         function retry(error) {
+          const errorCount = attempt + 1
+
+          if (limit && errorCount >= limit) return reject(error)
+
           if (shouldRetry && !shouldRetry(error)) return reject(error)
-          return recurse(error, attempt + 1)
+
+          return recurse(errorCount)
         }
 
-        try {
-          return Promise.resolve(fn.apply(null, args)).then(resolve).catch(retry)
-        } catch (error) {
-          return retry(error)
-        }
+        setTimeout(function () {
+          try {
+            Promise
+              .resolve(fn.apply(null, args))
+              .then(resolve)
+              .catch(function (asyncErr) {
+                return retry(asyncErr)
+              })
+          } catch (syncErr) {
+            retry(syncErr)
+          }
+        }, curve(attempt))
       }(null, 0))
     })
   }
