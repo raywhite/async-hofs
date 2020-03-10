@@ -39,5 +39,5 @@ test('buffer - buffers a writable stream', async function (t) {
   t.true(message === buffer.LIMIT_EXCEEDED)
 
   // NOTE: Two consumers should return the same promise.
-  t.true(buffer(readable) === buffer(readable))
+  t.true(buffer(readable) === buffer(readable)) // eslint-disable-line no-self-compare
 })

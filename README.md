@@ -11,7 +11,7 @@ This repo contains utilities (mostly [higher order functions](https://en.wikiped
 
 ## Compatibility
 
-At present, and for the 0.x versions, the entire module expects a standard `Promise` implementation to be available (**Node v4+**), and also doesn't itself use `async` / `await` in any of it's source - so as to not require transpilation when used as a dependancy (it's intended to be used as a dep for [google cloud functions](https://cloud.google.com/functions/docs/writing/)), which at the time of writing this, is pinned to **Node v6.11.5 LTS**.
+At present, and for the 0.x versions, the entire module expects a standard `Promise` implementation to be available (**Node v4+**), and also doesn't itself use `async` / `await` in any of it's source - so as to not require transpilation when used as a dependancy (it's intended to be used as a dep for [google cloud functions](https://cloud.google.com/functions/docs/writing/)), which at the time of writing this, is pinned to **Node v8 LTS**.
 
 However from 1.x onward `async` / `await` is permitted (although not yet necessarily used) and `Node v8.x` compatibility is targeted and `Node v6.x` compatility may break without major version changes.
 
@@ -184,7 +184,7 @@ Given a function `fn` and an optional `concurrency`, this function will return a
 
 ### limit(*fn*, *[rate = 1]*, *[interval = 1000]*) => *limited*
 
-Given a function `fn` and a `rate` and `iterval`, the returned version of `fn` will be rate limited such that invokation will be limited to a maximum of `rate` calls per any rolling `interval` period. 
+Given a function `fn` and a `rate` and `iterval`, the returned version of `fn` will be rate limited such that invokation will be limited to a maximum of `rate` calls per any rolling `interval` period.
 
 - **fn** - (`Function`) - an `async` function to lock / release.
 - **rate** - (`Number`) - the number of concurrent invocations allowed - defaults to `1`.
