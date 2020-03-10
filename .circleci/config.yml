@@ -7,14 +7,16 @@ jobs:
   build:
     docker:
       # Specify the version you desire here.
-      - image: circleci/node:8.15
+      - image: circleci/node:10
 
     working_directory: ~/async-hofs
 
     steps:
       - checkout
+
       # Install deps.
       - run: npm install
+
       # Run the actual tests.
       - run: npm run test
 
