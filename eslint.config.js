@@ -5,7 +5,7 @@ import globals from 'globals'
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'test/**/*.js'],
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -24,7 +24,7 @@ export default tseslint.config(
       '@stylistic/arrow-parens': 'off',
       '@stylistic/no-multiple-empty-lines': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
       'no-underscore-dangle': 'off',
       'no-param-reassign': 'off',
       'prefer-arrow-callback': 'off',

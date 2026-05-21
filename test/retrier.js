@@ -60,7 +60,7 @@ test('createRetrierFn - allows opt out of retries', async (t) => {
   try {
     await fn()
     t.fail()
-  } catch (error) {
+  } catch (_error) {
     t.pass()
   }
 })
@@ -82,7 +82,7 @@ test('createRetrierFn - allows indefinite retries', async (t) => {
   try {
     await fn()
     t.pass()
-  } catch (error) {
+  } catch (_error) {
     t.fail()
   }
 })

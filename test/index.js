@@ -94,6 +94,7 @@ test('createAsyncFnPool - creates a pool of async functions', async (t) => {
   const sleep = (x) => new Promise((r) => setTimeout(r, x))
   const coroutine = async () => {
     let v
+    // eslint-disable-next-line no-cond-assign
     while (v = input.shift()) {
       await sleep(0)
       output.push(v)
@@ -111,6 +112,7 @@ test('createAsyncFnPool - creates a pool of async functions', async (t) => {
 
   const failer = async () => {
     let v
+    // eslint-disable-next-line no-cond-assign
     while (v = input.pop()) {
       await sleep(0)
       if (v === 7) throw new Error(v)
@@ -195,7 +197,6 @@ test('clock - returns a function that limits concurrent calls', async (t) => {
   let v = await fn(PASSTROUGH)
   t.true(v === PASSTROUGH)
 
-  v = undefined
   try {
     v = await fn(PASSTROUGH, true)
   } catch (_v) {
