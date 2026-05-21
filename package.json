@@ -1,6 +1,6 @@
 {
   "name": "@raywhite/async-hofs",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Async / Promise related higher order functions and utils",
   "type": "module",
   "main": "./dist/index.cjs",
