@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    # Wait 7 days before bumping. Window to detect compromised releases
+    # before our workflows pick them up (zizmor `dependabot-cooldown`).
+    # Mirrors mise.toml's `minimum_release_age = "7d"` for parity.
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - '*'

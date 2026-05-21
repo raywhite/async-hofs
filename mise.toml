@@ -1,0 +1,29 @@
+[env]
+_.path = ['{{config_root}}/node_modules/.bin']
+
+# Supply-chain hardening: refuse to install any tool release younger than
+# 7 days. Mostly applies to fuzzy resolutions (`latest`, `node@24`); exact
+# pins bypass the filter. Matches the 7-day cooldown configured for
+# dependabot in `.github/dependabot.yml`.
+# https://mise.jdx.dev/tips-and-tricks.html#minimum-release-age
+[settings]
+minimum_release_age = "7d"
+
+[tools]
+node = "24"
+"aqua:zizmorcore/zizmor" = "1.24.1"
+
+# GitHub Actions security linting (zizmor). Mirrors CI's threshold.
+# Falls back to `gh auth token` if GH_TOKEN isn't already set, so online
+# audits (impostor-commit, ref-version-mismatch, known-vulnerable-actions)
+# run by default for local devs without extra setup.
+[tasks.lint-actions]
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+if [ -z "${GH_TOKEN:-}" ] && command -v gh >/dev/null 2>&1; then
+  GH_TOKEN=$(gh auth token 2>/dev/null || true)
+  export GH_TOKEN
+fi
+exec zizmor --min-severity=medium .
+'''
