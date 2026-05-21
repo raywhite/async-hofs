@@ -1,39 +1,29 @@
-const test = require('ava')
-const {
+import test from 'ava'
+import {
   createLinear,
   createExponential,
   createRetrierFn,
-} = require('../src/retrier')
+} from '../dist/index.js'
 
-test('createRetrierFn - retries async errors with delay', async function (t) {
-  const sleep = x => new Promise(r => setTimeout(r, x))
+test('createRetrierFn - retries async errors with delay', async (t) => {
+  const sleep = (x) => new Promise((r) => setTimeout(r, x))
 
-  /**
-   * Given 'i', create function that will return a promise
-   * that rejects `i` times... then perpetually resolve.
-   *
-   * @param {Number}
-   * @returns {Promise}
-   */
-  const createFailer = function (i) {
-    return async function () {
-      await sleep(0) // Forces async.
-      if (i) {
-        i--
-        throw new Error(i)
-      }
-      return true
+  const createFailer = (i) => async () => {
+    await sleep(0)
+    if (i) {
+      i--
+      throw new Error(i)
     }
+    return true
   }
 
-  // Will retry three times.
   const succeeder = createRetrierFn(createFailer(2), () => 15, 3)
   t.true(typeof succeeder === 'function')
 
-  const start = new Date().getTime()
+  const start = Date.now()
   const success = await succeeder()
   t.true(success)
-  t.true(new Date().getTime() - start >= 30)
+  t.true(Date.now() - start >= 30)
 
   const failer = createRetrierFn(createFailer(4), 2)
   t.true(typeof succeeder === 'function')
@@ -42,41 +32,30 @@ test('createRetrierFn - retries async errors with delay', async function (t) {
   try {
     failure = await failer()
   } catch ({ message }) {
-    failure = +message // Coerce.
+    failure = +message
   }
-
   t.true(failure === 2)
 })
 
-test('createRetrierFn - retries sync errors', async function (t) {
-  const responses = [
-    new Error('fail'),
-    true,
-  ]
-
+test('createRetrierFn - retries sync errors', async (t) => {
+  const responses = [new Error('fail'), true]
   function failOnce() {
     const response = responses.shift()
     if (response instanceof Error) throw response
     return response
   }
-
   const fn = createRetrierFn(failOnce, 2)
   t.true(await fn())
 })
 
-test('createRetrierFn - allows opt out of retries', async function (t) {
+test('createRetrierFn - allows opt out of retries', async (t) => {
   const shouldRetry = () => false
-  const responses = [
-    new Error('fail'),
-    true,
-  ]
-
+  const responses = [new Error('fail'), true]
   function failOnce() {
     const response = responses.shift()
     if (response instanceof Error) throw response
     return response
   }
-
   const fn = createRetrierFn(failOnce, 2, undefined, shouldRetry)
   try {
     await fn()
@@ -86,7 +65,7 @@ test('createRetrierFn - allows opt out of retries', async function (t) {
   }
 })
 
-test('createRetrierFn - allows indefinite retries', async function (t) {
+test('createRetrierFn - allows indefinite retries', async (t) => {
   const responses = [
     new Error('fail'),
     new Error('fail'),
@@ -94,13 +73,11 @@ test('createRetrierFn - allows indefinite retries', async function (t) {
     new Error('fail'),
     true,
   ]
-
   function failMany() {
     const response = responses.shift()
     if (response instanceof Error) throw response
     return response
   }
-
   const fn = createRetrierFn(failMany, 0, 0)
   try {
     await fn()
@@ -110,43 +87,35 @@ test('createRetrierFn - allows indefinite retries', async function (t) {
   }
 })
 
-test('createRetrierFn - supports curves', async function (t) {
-  const sleep = x => new Promise(r => setTimeout(r, x))
-
+test('createRetrierFn - supports curves', async (t) => {
+  const sleep = (x) => new Promise((r) => setTimeout(r, x))
   const cache = []
-  const createFn = function () {
+  const createFn = () => {
     let failed = false
-
-    const fn = async function (value) {
+    return async (value) => {
       await sleep(100)
       cache.push(value)
-
       if (!failed) {
         failed = true
         throw new Error('')
       }
-
       return value
     }
-
-    return fn
   }
 
   let f = createFn()
   let fn = createRetrierFn(f, 2)
-
   t.true(await fn('x') === 'x')
   t.true(cache.length === 2)
 
   cache.length = 0
   f = createFn()
-  fn = createRetrierFn(f, x => x, 2)
-
+  fn = createRetrierFn(f, (x) => x, 2)
   t.true(await fn('x') === 'x')
   t.true(cache.length === 2)
 })
 
-test('createRetrierFn - and inbuilt curves', async function (t) {
+test('createRetrierFn - and inbuilt curves', (t) => {
   const range = function* (len) {
     let count = 0
     while (count < len) {
@@ -164,4 +133,3 @@ test('createRetrierFn - and inbuilt curves', async function (t) {
   fx = createExponential({ a: 2, b: 1 }, 1000)
   t.deepEqual([...range(6)].map(fx), [1000, 2000, 4000, 8000, 16000, 32000])
 })
-
