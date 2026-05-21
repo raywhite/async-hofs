@@ -1,6 +1,13 @@
 {
     "extends": "airbnb-base",
-    "parser": "babel-eslint",
+    "parser": "@babel/eslint-parser",
+    "parserOptions": {
+        "requireConfigFile": false,
+        "babelOptions": {
+            "babelrc": false,
+            "configFile": false
+        }
+    },
     "env": {
         "browser": true,
         "node": true,
@@ -10,6 +17,8 @@
         "no-underscore-dangle": 0,
         "no-param-reassign": 0,
         "import/no-extraneous-dependencies" : 0,
+        "import/no-unresolved": 0,
+        "import/extensions": 0,
         "prefer-arrow-callback": 0,
         "func-names": 0,
         "no-plusplus": 0,
@@ -17,6 +26,11 @@
         "semi": [2, "never"],
         "no-await-in-loop": 0,
         "prefer-rest-params": 0,
-        "prefer-spread": 0
+        "prefer-spread": 0,
+        "arrow-parens": 0,
+        "no-promise-executor-return": 0,
+        "prefer-promise-reject-errors": 0,
+        "no-multiple-empty-lines": 0,
+        "prefer-exponentiation-operator": 0
     }
 }

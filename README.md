@@ -1,19 +1,10 @@
 # async-hofs
 
-[![CircleCI](https://circleci.com/gh/raywhite/async-hofs.svg?style=shield)](https://circleci.com/gh/raywhite/async-hofs)
-
 > JS Promise & async / await higher order functions utils.
 
 ## About
 
 This repo contains utilities (mostly [higher order functions](https://en.wikipedia.org/wiki/Higher-order_function)) intending to help with common [asynchronous tasks](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function) where `async` / `await` or [promises](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) are used.
-
-
-## Compatibility
-
-At present, and for the 0.x versions, the entire module expects a standard `Promise` implementation to be available (**Node v4+**), and also doesn't itself use `async` / `await` in any of it's source - so as to not require transpilation when used as a dependancy (it's intended to be used as a dep for [google cloud functions](https://cloud.google.com/functions/docs/writing/)), which at the time of writing this, is pinned to **Node v8 LTS**.
-
-However from 1.x onward `async` / `await` is permitted (although not yet necessarily used) and `Node v8.x` compatibility is targeted and `Node v6.x` compatility may break without major version changes.
 
 ## Setup
 
@@ -22,6 +13,10 @@ To clone run `git clone https://github.com/raywhite/async-hofs`.
 Tests are written using [ava](https://github.com/avajs/ava), and can be run with `npm run test:node`. The full test suite includes linting with `eslint .` (`npm run test:lint`), and can be run with `npm run test`.
 
 To install as a dep, run `npm install @raywhite/async-hofs --save`.
+
+## Versioning
+
+Releases are driven by [Changesets](https://github.com/changesets/changesets). Add a changeset (`npx changeset`) describing your change; merges to `main` open or update a release PR that, when merged, publishes to npm.
 
 ## API
 
