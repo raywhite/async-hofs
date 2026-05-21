@@ -109,13 +109,13 @@ Replace the entire file with:
   "license": "MIT",
   "devDependencies": {
     "@changesets/cli": "^2.31.0",
-    "@stylistic/eslint-plugin": "^5.5.0",
-    "@types/node": "^24.0.0",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@types/node": "^25.9.0",
     "ava": "^8.0.1",
-    "eslint": "^9.40.0",
+    "eslint": "^10.4.0",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.0",
-    "typescript-eslint": "^8.40.0"
+    "typescript": "^6.0.0",
+    "typescript-eslint": "^8.59.0"
   }
 }
 ```
