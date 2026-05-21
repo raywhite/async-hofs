@@ -23,6 +23,8 @@ jobs:
         task:
           - name: Lint
             command: npm run test:lint
+          - name: Types
+            command: npm run test:types
           - name: Test
             command: npm run test:node
 

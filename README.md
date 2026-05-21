@@ -10,9 +10,9 @@ This repo contains utilities (mostly [higher order functions](https://en.wikiped
 
 To clone run `git clone https://github.com/raywhite/async-hofs`.
 
-Tests are written using [ava](https://github.com/avajs/ava), and can be run with `npm run test:node`. The full test suite includes linting with `eslint .` (`npm run test:lint`), and can be run with `npm run test`.
+The package is written in TypeScript and built with [tsup](https://tsup.egoist.dev/) to ship both ESM and CJS bundles plus type declarations. Build with `npm run build`. Tests are written using [ava](https://github.com/avajs/ava) against the built `dist/` output (so they verify the actual shipped artefact); run them with `npm run test:node`. The full check (`npm test`) runs `eslint`, `tsc --noEmit`, and the ava suite.
 
-To install as a dep, run `npm install @raywhite/async-hofs --save`.
+To install as a dep, run `npm install @raywhite/async-hofs --save`. The package supports both `import { memoize } from '@raywhite/async-hofs'` (ESM) and `const { memoize } = require('@raywhite/async-hofs')` (CJS).
 
 ## Versioning
 
