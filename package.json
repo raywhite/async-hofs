@@ -36,10 +36,12 @@
   "license": "MIT",
   "devDependencies": {
     "@changesets/cli": "^2.31.0",
+    "@eslint/js": "^10.0.1",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@types/node": "^25.9.0",
     "ava": "^8.0.1",
     "eslint": "^10.4.0",
+    "globals": "^17.6.0",
     "tsup": "^8.5.0",
     "typescript": "^6.0.0",
     "typescript-eslint": "^8.59.0"
