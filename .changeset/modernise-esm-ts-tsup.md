@@ -13,4 +13,4 @@ Modernise package: TypeScript source, dual ESM+CJS publishing via tsup, ava 8, e
 
 **Breaking for consumers who:**
 - Imported internal files directly (e.g. `require('@raywhite/async-hofs/src/memoize')`) — only `.` is exposed via `exports`.
-- Pinned `engines.node` below 22 — the package now targets Node 22+.
+- Pinned `engines.node` below 24 — the package now declares `engines.node: ">=24"` to match the mise-pinned dev/CI runtime and the ava 8 + Node typings baseline.
