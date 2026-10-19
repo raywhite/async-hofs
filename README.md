@@ -184,7 +184,9 @@ Given a function `fn` and a `rate` and `iterval`, the returned version of `fn` w
 - **fn** - (`Function`) - an `async` function to lock / release.
 - **rate** - (`Number`) - the number of concurrent invocations allowed - defaults to `1`.
 - **interval** - (`Number`) - the interval for the `rate` limit - defaults to `1000`.
-- **limited** - (`Function`) - the rate limited function.
+- **limited** - (`Function`) - the rate limited function. Queued calls run in the order they were made.
+  - **limited.pending** - a getter for the number of invocations within the current `interval`.
+  - **limited.queued** - a getter for the number of calls awaiting invocation.
 
 **NOTE:** this method is aliased as `createRateLimitedFn` - which is just a more verbose name.
 

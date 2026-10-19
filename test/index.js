@@ -230,6 +230,21 @@ test('createRateLimitedFn - limits the execution rate of a function', async (t) 
   t.true(fn.cache.length === 200)
 })
 
+test('createRateLimitedFn - runs queued calls in order and counts them', async (t) => {
+  const { createRateLimitedFn } = hofs
+
+  const order = []
+  const rfn = createRateLimitedFn(async (v) => order.push(v), 1, 10)
+
+  const calls = [rfn(1), rfn(2), rfn(3)]
+  t.true(rfn.pending === 1)
+  t.true(rfn.queued === 2)
+
+  await Promise.all(calls)
+  t.deepEqual(order, [1, 2, 3])
+  t.true(rfn.queued === 0)
+})
+
 test('createConcurrencyLock', async (t) => {
   const { sleep, createConcurrencyLock } = hofs
   const lock = createConcurrencyLock(1)
