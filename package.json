@@ -45,7 +45,7 @@
     "ava": "^8.0.1",
     "eslint": "^10.4.0",
     "globals": "^17.6.0",
-    "tsup": "^8.5.0",
+    "tsup": "^9.0.0",
     "typescript": "^6.0.0",
     "typescript-eslint": "^8.59.0"
   }
