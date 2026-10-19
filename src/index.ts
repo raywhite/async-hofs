@@ -169,7 +169,7 @@ export const clock = createConcurrencyLockedFn
 export interface RateLimitedFn<F extends AnyAsyncFn> {
   (...args: Parameters<F>): Promise<Awaited<ReturnType<F>>>
   readonly pending: number
-  readonly queued: Array<() => void>
+  readonly queued: number
 }
 
 export const createRateLimitedFn = <F extends AnyAsyncFn>(
@@ -178,21 +178,21 @@ export const createRateLimitedFn = <F extends AnyAsyncFn>(
   interval = 1000,
 ): RateLimitedFn<F> => {
   let count = 0
-  const pending: Array<() => void> = []
+  const queue: Array<() => void> = []
 
   const tick = (): void => {
     count++
     sleep(interval).then(() => {
       count--
-      if (count <= rate && pending.length) {
-        pending.pop()!()
+      if (count <= rate && queue.length) {
+        queue.shift()!()
       }
     })
   }
 
   const schedule = (resolve: (v: unknown) => void, reject: (e: unknown) => void, args: Parameters<F>): void => {
     if (count >= rate) {
-      pending.push(() => {
+      queue.push(() => {
         tick()
         fn(...args).then(resolve, reject)
       })
@@ -207,7 +207,7 @@ export const createRateLimitedFn = <F extends AnyAsyncFn>(
   })) as RateLimitedFn<F>
 
   Object.defineProperty(limited, 'pending', { get: () => count })
-  Object.defineProperty(limited, 'queued', { get: () => pending })
+  Object.defineProperty(limited, 'queued', { get: () => queue.length })
 
   return limited
 }
